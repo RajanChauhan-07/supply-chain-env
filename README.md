@@ -7,6 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
+short_description: OpenEnv supply-chain disruption management environment for agent evaluation and training.
 ---
 
 # Supply Chain Disruption Management Environment
