@@ -1,3 +1,14 @@
+---
+title: Supply Chain Environment
+emoji: "🚚"
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # Supply Chain Disruption Management Environment
 
 An OpenEnv-compliant AI training environment where agents learn to manage real-world supply chain disruptions.
