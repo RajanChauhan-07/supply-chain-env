@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Supply Chain Environment README</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <nav class="topbar glass">
+        <div class="brand">
+          <span class="brand-mark">SC</span>
+          <span class="brand-text">Supply Chain OpenEnv</span>
+        </div>
+        <div class="topbar-links">
+          <a href="#overview">Overview</a>
+          <a href="#flow">Backend Flow</a>
+          <a href="#endpoints">Endpoints</a>
+          <a href="#setup">Run Locally</a>
+        </div>
+      </nav>
+
+      <section class="hero-copy glass">
+        <p class="eyebrow">Read-Only Product Page</p>
+        <h1>A visual README for how the backend works, step by step.</h1>
+        <p class="hero-text">
+          This frontend is intentionally simple. It does not control the environment.
+          It presents the backend system, task lifecycle, API contract, grading logic,
+          and setup instructions in one structured light-mode page.
+        </p>
+        <div class="hero-pills">
+          <span>FastAPI backend</span>
+          <span>OpenEnv compliant</span>
+          <span>3 graded tasks</span>
+          <span>Docker ready</span>
+        </div>
+      </section>
+    </header>
+
+    <main class="content">
+      <section id="overview" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">System Overview</p>
+          <h2>What this backend is built to do</h2>
+        </div>
+        <div class="grid two-up">
+          <article class="card glass">
+            <h3>Purpose</h3>
+            <p>
+              The backend simulates a real supply chain operations workflow. An agent acts
+              like an operations manager handling delays, supplier failures, order risk,
+              budget pressure, and escalation decisions.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>Core Stack</h3>
+            <p>
+              The service is built with FastAPI and typed Pydantic models. It exposes
+              `reset`, `step`, `state`, `tasks`, `grade`, and `validate` endpoints,
+              plus a root health check for deployment verification.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>Agent Inputs</h3>
+            <p>
+              Every step returns disruptions, orders, suppliers, budget, metrics, and a
+              status message. In the hard task, some supplier reliability data stays hidden
+              until the agent explicitly investigates it.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>Agent Outputs</h3>
+            <p>
+              The agent responds with one structured action such as reroute, substitute,
+              delay, cancel, escalate, or investigate. The backend validates the action,
+              updates state, and returns reward plus progress.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="flow" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Backend Flow</p>
+          <h2>How the environment works from start to finish</h2>
+        </div>
+        <div class="timeline">
+          <article class="timeline-step glass">
+            <span class="step-number">01</span>
+            <div>
+              <h3>Health check confirms the service is alive</h3>
+              <p>
+                The root endpoint returns metadata about the environment and all major routes.
+                This is the first signal that the deployment is healthy and reachable.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">02</span>
+            <div>
+              <h3>`reset()` starts a fresh episode</h3>
+              <p>
+                A chosen task such as `task_easy`, `task_medium`, or `task_hard` loads its
+                initial suppliers, disruptions, orders, budget, and scoring context.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">03</span>
+            <div>
+              <h3>The observation becomes the agent's decision context</h3>
+              <p>
+                The agent sees active disruptions, at-risk orders, alternative suppliers,
+                budget remaining, and running metrics like current score and saved orders.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">04</span>
+            <div>
+              <h3>`step(action)` applies one operational decision</h3>
+              <p>
+                The backend validates the action model, mutates the environment state,
+                computes immediate reward, and decides whether the episode should continue.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">05</span>
+            <div>
+              <h3>Reward shaping drives meaningful progress</h3>
+              <p>
+                Good reroutes, correct escalations, useful investigations, and revenue
+                protection improve the score. Invalid, redundant, late, or costly decisions
+                reduce it.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">06</span>
+            <div>
+              <h3>`state()` exposes the full internal episode snapshot</h3>
+              <p>
+                This lets a caller inspect the current environment state without advancing
+                the episode, which is useful for debugging and validation.
+              </p>
+            </div>
+          </article>
+          <article class="timeline-step glass">
+            <span class="step-number">07</span>
+            <div>
+              <h3>`grade()` converts the run into a deterministic final score</h3>
+              <p>
+                The grader returns a normalized score in the range `[0.0, 1.0]` plus a
+                breakdown of what contributed to success or failure.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="tasks" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Task Ladder</p>
+          <h2>Three tasks with increasing operational pressure</h2>
+        </div>
+        <div class="grid three-up">
+          <article class="task-card glass">
+            <p class="task-tag">Easy</p>
+            <h3>Single Lane Disruption</h3>
+            <p>
+              One important order is threatened by a single supplier issue. The agent needs
+              to pick a viable alternative and preserve value efficiently.
+            </p>
+            <ul>
+              <li>Max steps: 10</li>
+              <li>Pass threshold: 0.60</li>
+              <li>Expected range: 0.80 to 1.00</li>
+            </ul>
+          </article>
+          <article class="task-card glass">
+            <p class="task-tag">Medium</p>
+            <h3>Multi-Point Failure</h3>
+            <p>
+              Several disruptions and budget limits force prioritization. The agent cannot
+              save everything equally and must make tradeoffs intentionally.
+            </p>
+            <ul>
+              <li>Max steps: 20</li>
+              <li>Pass threshold: 0.45</li>
+              <li>Expected range: 0.70 to 0.90</li>
+            </ul>
+          </article>
+          <article class="task-card glass">
+            <p class="task-tag">Hard</p>
+            <h3>Cascade Crisis</h3>
+            <p>
+              Multiple high-severity disruptions, tight budget, hidden supplier risk, and
+              partial infeasibility make the final task a realistic crisis-management test.
+              Some supplier reliability is intentionally hidden until investigated.
+            </p>
+            <ul>
+              <li>Max steps: 30</li>
+              <li>Pass threshold: 0.30</li>
+              <li>Expected range: 0.45 to 0.70</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="endpoints" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">API Surface</p>
+          <h2>What each backend route is responsible for</h2>
+        </div>
+        <div class="endpoint-list">
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code>/</code>
+            </div>
+            <p>Returns deployment metadata and confirms the environment is healthy.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method post">POST</span>
+              <code>/reset</code>
+            </div>
+            <p>Starts a fresh episode for a selected task and returns the initial observation.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method post">POST</span>
+              <code>/step</code>
+            </div>
+            <p>Accepts one typed action and returns updated observation, reward, done, and info.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code>/state</code>
+            </div>
+            <p>Returns the full internal state without advancing the episode.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code>/tasks</code>
+            </div>
+            <p>Lists all tasks, difficulty levels, and metadata.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code>/grade</code>
+            </div>
+            <p>Returns the deterministic final score and grading breakdown for the episode.</p>
+          </article>
+          <article class="endpoint glass">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code>/validate</code>
+            </div>
+            <p>Runs environment self-checks to confirm the system behaves correctly.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="instructions" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">How To Read The Backend</p>
+          <h2>A systematic map of the codebase</h2>
+        </div>
+        <div class="grid two-up">
+          <article class="card glass">
+            <h3>1. API entrypoint</h3>
+            <p>Start with <code>backend/app/main.py</code>. This file defines the FastAPI app, CORS setup, route handlers, and validation endpoints.</p>
+          </article>
+          <article class="card glass">
+            <h3>2. Configuration</h3>
+            <p>Open <code>backend/app/config.py</code> to see how app metadata and environment variables are configured.</p>
+          </article>
+          <article class="card glass">
+            <h3>3. Engine</h3>
+            <p>The environment engine lives in <code>backend/app/environment/engine.py</code>. This is where state transitions, action handling, and episode flow are coordinated.</p>
+          </article>
+          <article class="card glass">
+            <h3>4. Task definitions</h3>
+            <p>Task scenarios are split across <code>backend/app/tasks/</code>. Each task defines the starting world, task difficulty, and expected objective pressure.</p>
+          </article>
+          <article class="card glass">
+            <h3>5. Typed models</h3>
+            <p>Pydantic schemas in <code>backend/app/models/</code> define the Observation, Action, Reward, and state contracts used by the API.</p>
+          </article>
+          <article class="card glass">
+            <h3>6. Graders</h3>
+            <p>Grading logic in <code>backend/app/graders/</code> converts the final episode outcome into deterministic normalized scores.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="setup" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Run Locally</p>
+          <h2>Step-by-step instructions</h2>
+        </div>
+        <div class="setup-layout">
+          <article class="setup-card glass">
+            <h3>Step 1</h3>
+            <p>Install the backend dependencies.</p>
+            <pre><code>pip install -r backend/requirements.txt</code></pre>
+          </article>
+          <article class="setup-card glass">
+            <h3>Step 2</h3>
+            <p>Start the FastAPI server on port 7860.</p>
+            <pre><code>uvicorn backend.app.main:app --host 0.0.0.0 --port 7860</code></pre>
+          </article>
+          <article class="setup-card glass">
+            <h3>Step 3</h3>
+            <p>Confirm the backend is responding.</p>
+            <pre><code>curl http://localhost:7860/
+curl http://localhost:7860/tasks
+curl http://localhost:7860/validate</code></pre>
+          </article>
+          <article class="setup-card glass">
+            <h3>Step 4</h3>
+            <p>Set inference environment variables for the OpenAI-compatible client.</p>
+            <pre><code>API_BASE_URL=&lt;provider endpoint&gt;
+MODEL_NAME=&lt;model id&gt;
+OPENAI_API_KEY=&lt;api key&gt;
+ENV_URL=http://localhost:7860</code></pre>
+          </article>
+          <article class="setup-card glass">
+            <h3>Step 5</h3>
+            <p>Run the baseline inference script.</p>
+            <pre><code>python inference.py
+# or for pure model-only evaluation:
+STRICT_BASELINE=1 python inference.py</code></pre>
+          </article>
+          <article class="setup-card glass">
+            <h3>Step 6</h3>
+            <p>Run the backend tests to confirm everything stays healthy.</p>
+            <pre><code>python -m unittest discover -s backend/tests -p "test_*.py"</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section id="reward" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Reward Design</p>
+          <h2>What the backend encourages and what it penalizes</h2>
+        </div>
+        <div class="grid two-up">
+          <article class="card glass">
+            <h3>Positive signals</h3>
+            <ul>
+              <li>Fulfilling orders on time</li>
+              <li>Choosing cost-efficient, reliable suppliers</li>
+              <li>Escalating critical disruptions correctly</li>
+              <li>Running useful investigations before risky decisions</li>
+              <li>Preserving high-value revenue under budget</li>
+            </ul>
+          </article>
+          <article class="card glass">
+            <h3>Negative signals</h3>
+            <ul>
+              <li>Missing deadlines or losing orders</li>
+              <li>Overspending the budget</li>
+              <li>Using unreliable suppliers</li>
+              <li>Repeating redundant actions</li>
+              <li>Submitting invalid or harmful actions</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="evaluation" class="section">
+        <div class="section-heading">
+          <p class="eyebrow">Evaluation Notes</p>
+          <h2>How to interpret baseline and judge runs</h2>
+        </div>
+        <div class="grid two-up">
+          <article class="card glass">
+            <h3>Deterministic environment</h3>
+            <p>
+              The environment itself is deterministic. Differences in score should come from
+              agent decisions, not random world changes between runs.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>Baseline modes</h3>
+            <p>
+              The baseline script reports whether each task was model-only, hybrid, or
+              fallback-only. `STRICT_BASELINE=1` disables fallback rescue for pure model runs.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>What hard task measures</h3>
+            <p>
+              The hard task is not just about rerouting. It checks escalation discipline,
+              budget tradeoffs, and whether the agent investigates hidden supplier risk.
+            </p>
+          </article>
+          <article class="card glass">
+            <h3>What a good score means</h3>
+            <p>
+              Strong agents should solve easy reliably, perform well but not perfectly on
+              medium, and still face meaningful tradeoffs on hard.
+            </p>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,124 @@
+{
+    "suppliers": [
+        {
+            "id": "S001",
+            "name": "PrimeSource Industries",
+            "location": "Germany",
+            "lead_time_days": 5,
+            "cost_multiplier": 1.0,
+            "reliability_score": 0.95,
+            "capacity_available": 50000,
+            "is_available": true
+        },
+        {
+            "id": "S002",
+            "name": "FastTrack Manufacturing",
+            "location": "Mexico",
+            "lead_time_days": 3,
+            "cost_multiplier": 1.2,
+            "reliability_score": 0.88,
+            "capacity_available": 30000,
+            "is_available": true
+        },
+        {
+            "id": "S003",
+            "name": "EastBridge Supplies",
+            "location": "China",
+            "lead_time_days": 12,
+            "cost_multiplier": 0.75,
+            "reliability_score": 0.80,
+            "capacity_available": 100000,
+            "is_available": true
+        },
+        {
+            "id": "S004",
+            "name": "NorthStar Logistics",
+            "location": "Canada",
+            "lead_time_days": 4,
+            "cost_multiplier": 1.1,
+            "reliability_score": 0.92,
+            "capacity_available": 25000,
+            "is_available": true
+        },
+        {
+            "id": "S005",
+            "name": "SunCoast Trading",
+            "location": "India",
+            "lead_time_days": 10,
+            "cost_multiplier": 0.80,
+            "reliability_score": 0.75,
+            "capacity_available": 75000,
+            "is_available": true
+        },
+        {
+            "id": "S006",
+            "name": "AlphaSupply Co",
+            "location": "USA",
+            "lead_time_days": 2,
+            "cost_multiplier": 1.5,
+            "reliability_score": 0.97,
+            "capacity_available": 20000,
+            "is_available": true
+        },
+        {
+            "id": "S007",
+            "name": "MedTerra Exports",
+            "location": "Spain",
+            "lead_time_days": 7,
+            "cost_multiplier": 1.05,
+            "reliability_score": 0.89,
+            "capacity_available": 40000,
+            "is_available": true
+        },
+        {
+            "id": "S008",
+            "name": "PacificRim Partners",
+            "location": "Vietnam",
+            "lead_time_days": 9,
+            "cost_multiplier": 0.70,
+            "reliability_score": 0.72,
+            "capacity_available": 60000,
+            "is_available": true
+        },
+        {
+            "id": "S009",
+            "name": "BridgePoint Supply",
+            "location": "Turkey",
+            "lead_time_days": 6,
+            "cost_multiplier": 0.90,
+            "reliability_score": 0.83,
+            "capacity_available": 35000,
+            "is_available": true
+        },
+        {
+            "id": "S010",
+            "name": "GlobalEdge Manufacturing",
+            "location": "Brazil",
+            "lead_time_days": 8,
+            "cost_multiplier": 0.85,
+            "reliability_score": 0.78,
+            "capacity_available": 45000,
+            "is_available": true
+        },
+        {
+            "id": "S011",
+            "name": "ArcticFlow Industries",
+            "location": "Finland",
+            "lead_time_days": 6,
+            "cost_multiplier": 1.15,
+            "reliability_score": 0.94,
+            "capacity_available": 15000,
+            "is_available": true
+        },
+        {
+            "id": "S012",
+            "name": "QuickShip Distributors",
+            "location": "Netherlands",
+            "lead_time_days": 3,
+            "cost_multiplier": 1.3,
+            "reliability_score": 0.91,
+            "capacity_available": 22000,
+            "is_available": true
+        }
+    ]
+}

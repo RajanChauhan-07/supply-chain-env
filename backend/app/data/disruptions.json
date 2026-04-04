@@ -1,0 +1,84 @@
+{
+    "disruptions": [
+        {
+            "id": "D001",
+            "type": "delay",
+            "severity": "medium",
+            "affected_supplier_id": "S001",
+            "affected_supplier_name": "PrimeSource Industries",
+            "estimated_duration_days": 10,
+            "description": "PrimeSource Industries is experiencing a 10-day delay due to unexpected machinery breakdown at their main production facility in Germany.",
+            "is_resolved": false
+        },
+        {
+            "id": "D002",
+            "type": "closure",
+            "severity": "critical",
+            "affected_supplier_id": "S003",
+            "affected_supplier_name": "EastBridge Supplies",
+            "estimated_duration_days": 30,
+            "description": "EastBridge Supplies factory in China has been ordered to close for 30 days due to regulatory safety violations found during a government inspection.",
+            "is_resolved": false
+        },
+        {
+            "id": "D003",
+            "type": "capacity",
+            "severity": "high",
+            "affected_supplier_id": "S005",
+            "affected_supplier_name": "SunCoast Trading",
+            "estimated_duration_days": 15,
+            "description": "SunCoast Trading in India is operating at only 40% capacity due to worker strikes affecting their main warehouse and dispatch center.",
+            "is_resolved": false
+        },
+        {
+            "id": "D004",
+            "type": "quality",
+            "severity": "high",
+            "affected_supplier_id": "S002",
+            "affected_supplier_name": "FastTrack Manufacturing",
+            "estimated_duration_days": 7,
+            "description": "FastTrack Manufacturing has issued a quality hold on all outgoing shipments after a batch failure was detected. All orders on hold pending investigation.",
+            "is_resolved": false
+        },
+        {
+            "id": "D005",
+            "type": "bankruptcy",
+            "severity": "critical",
+            "affected_supplier_id": "S008",
+            "affected_supplier_name": "PacificRim Partners",
+            "estimated_duration_days": 90,
+            "description": "PacificRim Partners in Vietnam has filed for bankruptcy protection. All operations are suspended indefinitely. Orders must be immediately rerouted.",
+            "is_resolved": false
+        },
+        {
+            "id": "D006",
+            "type": "geopolitical",
+            "severity": "critical",
+            "affected_supplier_id": "S010",
+            "affected_supplier_name": "GlobalEdge Manufacturing",
+            "estimated_duration_days": 45,
+            "description": "New trade sanctions have been imposed on Brazil affecting GlobalEdge Manufacturing. All imports are blocked pending government clearance.",
+            "is_resolved": false
+        },
+        {
+            "id": "D007",
+            "type": "delay",
+            "severity": "low",
+            "affected_supplier_id": "S007",
+            "affected_supplier_name": "MedTerra Exports",
+            "estimated_duration_days": 5,
+            "description": "MedTerra Exports is facing minor port congestion in Spain causing 5-day delays on all sea shipments. Air freight alternative available.",
+            "is_resolved": false
+        },
+        {
+            "id": "D008",
+            "type": "capacity",
+            "severity": "medium",
+            "affected_supplier_id": "S009",
+            "affected_supplier_name": "BridgePoint Supply",
+            "estimated_duration_days": 12,
+            "description": "BridgePoint Supply in Turkey is at 60% capacity after a fire damaged one of their three production lines. Partial fulfillment possible.",
+            "is_resolved": false
+        }
+    ]
+}

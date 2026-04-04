@@ -1,0 +1,280 @@
+# openenv.yaml
+# OpenEnv specification compliance file
+# Must be in root directory
+
+name: supply-chain-disruption-env
+version: "1.0.0"
+description: >
+  An OpenEnv-compliant AI training environment where agents learn to manage
+  real-world supply chain disruptions. The agent acts as an operations manager
+  who must reroute orders, substitute suppliers, escalate critical disruptions,
+  and minimize revenue loss — all under budget and time constraints.
+
+author: "supply-chain-env"
+license: "MIT"
+tags:
+  - supply-chain
+  - operations-management
+  - real-world
+  - openenv
+  - logistics
+  - decision-making
+
+# ── Environment Info ──────────────────────────────
+environment:
+  type: sequential
+  domain: supply-chain-operations
+  real_world: true
+  stochastic: false
+  max_episode_steps: 30
+
+# ── API Endpoints ─────────────────────────────────
+api:
+  base_url: "http://localhost:7860"
+  endpoints:
+    reset: "POST /reset"
+    step:  "POST /step"
+    state: "GET  /state"
+    tasks: "GET  /tasks"
+    grade: "GET  /grade"
+
+# ── Observation Space ─────────────────────────────
+observation_space:
+  type: object
+  description: "Current world state seen by the agent"
+  fields:
+    task_id:
+      type: string
+      description: "Which task is running"
+    step:
+      type: integer
+      description: "Current step number"
+    max_steps:
+      type: integer
+      description: "Maximum steps allowed"
+    done:
+      type: boolean
+      description: "Is episode complete"
+    disruptions:
+      type: array
+      description: "List of active supply disruptions"
+      item_fields:
+        id: string
+        type: "delay | closure | capacity | quality | bankruptcy | geopolitical"
+        severity: "low | medium | high | critical"
+        affected_supplier_id: string
+        affected_supplier_name: string
+        estimated_duration_days: integer
+        description: string
+        is_resolved: boolean
+    orders:
+      type: array
+      description: "List of orders at risk"
+      item_fields:
+        id: string
+        product: string
+        quantity: integer
+        value_usd: float
+        deadline_days: integer
+        status: "safe | at_risk | fulfilled | lost | delayed"
+        current_supplier_id: string
+        priority: "low | medium | high"
+    available_suppliers:
+      type: array
+      description: "Alternative suppliers agent can use"
+      item_fields:
+        id: string
+        name: string
+        location: string
+        lead_time_days: integer
+        cost_multiplier: float
+        reliability_score: "float | null"
+        reliability_known: boolean
+        capacity_available: integer
+        is_available: boolean
+    budget:
+      type: object
+      fields:
+        total: float
+        spent: float
+        remaining: float
+    metrics:
+      type: object
+      fields:
+        orders_saved: integer
+        orders_lost: integer
+        orders_delayed: integer
+        revenue_protected: float
+        revenue_lost: float
+        actions_taken: integer
+        current_score: float
+    message:
+      type: string
+      description: "Human readable status message"
+
+# ── Action Space ──────────────────────────────────
+action_space:
+  type: object
+  description: "Actions available to the agent each step"
+  action_types:
+    reroute:
+      description: "Reroute an at-risk order to a different supplier"
+      required_fields:
+        - action_type
+        - order_id
+        - new_supplier_id
+      optional_fields:
+        - shipping_method
+    substitute:
+      description: "Replace product with an alternative"
+      required_fields:
+        - action_type
+        - order_id
+        - alternative_product
+      optional_fields:
+        - notify_customer
+    delay:
+      description: "Push an order deadline back by N days"
+      required_fields:
+        - action_type
+        - order_id
+        - delay_days
+      optional_fields:
+        - reason
+    cancel:
+      description: "Cancel an order entirely (last resort)"
+      required_fields:
+        - action_type
+        - order_id
+      optional_fields:
+        - reason
+    escalate:
+      description: "Escalate a disruption to management"
+      required_fields:
+        - action_type
+        - disruption_id
+        - escalation_priority
+      optional_fields:
+        - escalation_message
+    investigate:
+      description: "Investigate a supplier or disruption for more info"
+      required_fields:
+        - action_type
+        - target_id
+      optional_fields:
+        - investigation_type
+
+# ── Reward ────────────────────────────────────────
+reward:
+  range: [-1.0, 1.0]
+  cumulative_score_range: [0.0, 1.0]
+  description: "Step-level reward with cumulative normalized score"
+  positive_signals:
+    - "Order rerouted and fulfilled on time: +0.15 to +0.25"
+    - "Good supplier choice (cost + reliability): +0.05"
+    - "Correct escalation of critical disruption: +0.08"
+    - "Useful investigation: +0.05"
+    - "Terminal: all high-value orders saved: +0.20"
+    - "Terminal: finished under budget: +0.10"
+    - "Terminal: finished early: +0.05"
+  negative_signals:
+    - "Order deadline missed: -0.10"
+    - "Order lost completely: -0.15"
+    - "Budget exceeded: -0.10"
+    - "Unreliable supplier chosen: -0.05"
+    - "Redundant/repeated action: -0.05"
+    - "Invalid action: -0.05"
+    - "Terminal: more than 50% orders lost: -0.20"
+
+# ── Tasks ─────────────────────────────────────────
+tasks:
+  - id: task_easy
+    name: "Single Lane Disruption"
+    difficulty: easy
+    max_steps: 10
+    pass_threshold: 0.60
+    description: >
+      A single supplier is delayed. One high-value order is at risk.
+      Two alternative suppliers are available. Choose the best one
+      considering cost, lead time, and reliability.
+    grader:
+      order_fulfilled:   0.50
+      budget_respected:  0.20
+      supplier_choice:   0.20
+      efficiency:        0.10
+    expected_score_range: [0.8, 1.0]
+
+  - id: task_medium
+    name: "Multi-Point Failure"
+    difficulty: medium
+    max_steps: 20
+    pass_threshold: 0.45
+    description: >
+      Three simultaneous disruptions put four orders at risk. Budget is
+      limited — not all orders can be saved on time. The agent must triage by
+      value and priority, finding non-conflicting alternatives.
+    grader:
+      high_value_orders_saved: 0.40
+      revenue_protected:       0.30
+      budget_adherence:        0.20
+      prioritization_bonus:    0.10
+    expected_score_range: [0.7, 0.9]
+
+  - id: task_hard
+    name: "Cascade Crisis"
+    difficulty: hard
+    max_steps: 30
+    pass_threshold: 0.30
+    description: >
+      Five simultaneous disruptions including bankruptcy and geopolitical
+      sanctions threaten eight orders. Budget is severely constrained.
+      Some suppliers have hidden reliability issues. Critical disruptions
+      must be escalated. A perfect rescue is intentionally infeasible.
+    grader:
+      high_value_orders_saved:  0.35
+      revenue_protected:        0.25
+      budget_not_exceeded:      0.20
+      escalation_decisions:     0.10
+      speed_of_resolution:      0.10
+    expected_score_range: [0.45, 0.7]
+
+# ── Baseline ──────────────────────────────────────
+baseline:
+  script: "inference.py"
+  model: "Recommended provider/model: Bytez + openai/gpt-4o; supports strict model-only mode and fallback-assisted mode"
+  non_llm_validation_script: "baseline_benchmarks.py"
+  optional_validation_script: "robustness_checks.py"
+  heuristic_policy:
+    description: "Deterministic domain heuristic reused by fallback recovery"
+    expected_scores:
+      task_easy: 1.0
+      task_medium: 0.83
+      task_hard: 0.61
+  random_policy:
+    seeds: [7, 21, 42, 84, 1337]
+    mean_scores:
+      task_easy: 0.67
+      task_medium: 0.38
+      task_hard: 0.18
+  expected_scores:
+    task_easy:   1.0
+    task_medium: 0.83
+    task_hard:   0.61
+
+# ── Infrastructure ────────────────────────────────
+infrastructure:
+  dockerfile: "Dockerfile"
+  port: 7860
+  memory_gb: 8
+  cpu_cores: 2
+  runtime_limit_minutes: 20
+  huggingface_space: true
+
+future_work:
+  rl_foundation:
+    wrapper: "backend/app/rl/gym_wrapper.py"
+    smoke_script: "rl_smoke.py"
+    requirements: "requirements-rl.txt"
+    notes:
+      - "Provides a Gymnasium-compatible wrapper around the in-process engine"
+      - "Supports future check_env and PPO experiments without changing the OpenEnv HTTP API"

@@ -1,0 +1,124 @@
+{
+    "orders": [
+        {
+            "id": "O001",
+            "product": "Industrial Circuit Boards",
+            "quantity": 5000,
+            "value_usd": 250000,
+            "deadline_days": 7,
+            "status": "at_risk",
+            "current_supplier_id": "S001",
+            "priority": "high"
+        },
+        {
+            "id": "O002",
+            "product": "Steel Reinforcement Rods",
+            "quantity": 20000,
+            "value_usd": 180000,
+            "deadline_days": 14,
+            "status": "at_risk",
+            "current_supplier_id": "S003",
+            "priority": "high"
+        },
+        {
+            "id": "O003",
+            "product": "Medical Grade Plastics",
+            "quantity": 8000,
+            "value_usd": 320000,
+            "deadline_days": 5,
+            "status": "at_risk",
+            "current_supplier_id": "S001",
+            "priority": "high"
+        },
+        {
+            "id": "O004",
+            "product": "Automotive Brake Components",
+            "quantity": 3000,
+            "value_usd": 95000,
+            "deadline_days": 10,
+            "status": "at_risk",
+            "current_supplier_id": "S002",
+            "priority": "medium"
+        },
+        {
+            "id": "O005",
+            "product": "Consumer Electronics Parts",
+            "quantity": 15000,
+            "value_usd": 75000,
+            "deadline_days": 21,
+            "status": "at_risk",
+            "current_supplier_id": "S003",
+            "priority": "medium"
+        },
+        {
+            "id": "O006",
+            "product": "Pharmaceutical Packaging",
+            "quantity": 50000,
+            "value_usd": 40000,
+            "deadline_days": 3,
+            "status": "at_risk",
+            "current_supplier_id": "S005",
+            "priority": "high"
+        },
+        {
+            "id": "O007",
+            "product": "Solar Panel Components",
+            "quantity": 10000,
+            "value_usd": 150000,
+            "deadline_days": 18,
+            "status": "at_risk",
+            "current_supplier_id": "S003",
+            "priority": "medium"
+        },
+        {
+            "id": "O008",
+            "product": "Food Grade Containers",
+            "quantity": 25000,
+            "value_usd": 30000,
+            "deadline_days": 7,
+            "status": "at_risk",
+            "current_supplier_id": "S005",
+            "priority": "low"
+        },
+        {
+            "id": "O009",
+            "product": "Aerospace Fasteners",
+            "quantity": 2000,
+            "value_usd": 480000,
+            "deadline_days": 12,
+            "status": "at_risk",
+            "current_supplier_id": "S001",
+            "priority": "high"
+        },
+        {
+            "id": "O010",
+            "product": "Agricultural Equipment Parts",
+            "quantity": 7000,
+            "value_usd": 60000,
+            "deadline_days": 30,
+            "status": "at_risk",
+            "current_supplier_id": "S010",
+            "priority": "low"
+        },
+        {
+            "id": "O011",
+            "product": "Textile Raw Materials",
+            "quantity": 30000,
+            "value_usd": 45000,
+            "deadline_days": 20,
+            "status": "at_risk",
+            "current_supplier_id": "S008",
+            "priority": "low"
+        },
+        {
+            "id": "O012",
+            "product": "Defense Grade Alloys",
+            "quantity": 1000,
+            "value_usd": 750000,
+            "deadline_days": 8,
+            "status": "at_risk",
+            "current_supplier_id": "S001",
+            "priority": "high"
+        }
+    ]
+}
