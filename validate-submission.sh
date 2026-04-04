@@ -32,6 +32,26 @@ run_with_timeout() {
   fi
 }
 
+find_openenv() {
+  if [ -n "${OPENENV_BIN:-}" ] && [ -x "${OPENENV_BIN}" ]; then
+    printf "%s" "${OPENENV_BIN}"
+    return 0
+  fi
+  if command -v openenv >/dev/null 2>&1; then
+    command -v openenv
+    return 0
+  fi
+  if [ -x "$REPO_DIR/.venv/bin/openenv" ]; then
+    printf "%s" "$REPO_DIR/.venv/bin/openenv"
+    return 0
+  fi
+  if [ -x "$REPO_DIR/backend/.venv/bin/openenv" ]; then
+    printf "%s" "$REPO_DIR/backend/.venv/bin/openenv"
+    return 0
+  fi
+  return 1
+}
+
 portable_mktemp() {
   local prefix="${1:-validate}"
   mktemp "${TMPDIR:-/tmp}/${prefix}-XXXXXX" 2>/dev/null || mktemp
@@ -130,14 +150,17 @@ fi
 
 log "${BOLD}Step 3/3: Running openenv validate${NC} ..."
 
-if ! command -v openenv >/dev/null 2>&1; then
+OPENENV_CMD="$(find_openenv || true)"
+
+if [ -z "$OPENENV_CMD" ]; then
   fail "openenv command not found"
   hint "Install it: pip install 'git+https://github.com/meta-pytorch/OpenEnv.git'"
+  hint "Or set OPENENV_BIN=/path/to/openenv before running this script"
   stop_at "Step 3"
 fi
 
 VALIDATE_OK=false
-VALIDATE_OUTPUT=$(cd "$REPO_DIR" && openenv validate 2>&1) && VALIDATE_OK=true
+VALIDATE_OUTPUT=$(cd "$REPO_DIR" && "$OPENENV_CMD" validate 2>&1) && VALIDATE_OK=true
 
 if [ "$VALIDATE_OK" = true ]; then
   pass "openenv validate passed"
