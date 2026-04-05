@@ -270,18 +270,13 @@ Live run — `HF_TOKEN` only, no other env vars:
 | Task | Score | Steps | Passed |
 |---|---:|---:|---|
 | `task_easy` | `1.000` | 1 | ✅ |
-| `task_medium` | `0.830` | 5 | ✅ |
-| `task_hard` | `0.615` | 12 | ✅ |
-| **Overall avg** | **`0.815`** | — | **All passed** |
+| `task_medium` | `0.709 – 0.830` | 5–9 | ✅ |
+| `task_hard` | `0.615 – 0.752` | 12–22 | ✅ |
+| **Overall avg** | **`0.820`** | — | **All passed** |
 
-**Total runtime: 48.21 seconds** (well within 20 min limit)
+**Total runtime: 48–130 seconds** (well within 20 min limit)
 
-Score breakdown for hard task:
-- high_value_orders_saved: 0.2333 / 0.35
-- revenue_protected: 0.1812 / 0.25
-- budget_not_exceeded: 0.200 / 0.20 ✅
-- escalation_decisions: 0.100 / 0.10 ✅ (all 3 critical disruptions escalated)
-- bad_supplier_penalty: −0.10 (S005_ALT has hidden low reliability)
+Scores vary slightly across runs due to LLM non-determinism. Hard task score depends on whether the model investigates hidden-reliability suppliers before routing to them.
 
 ### Reference model benchmark results
 

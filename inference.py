@@ -785,7 +785,7 @@ def build_user_prompt(
         if order["status"] in resolved_counts:
             resolved_counts[order["status"]] += 1
 
-    # Format suppliers — show capacity clearly
+    # Format suppliers — show capacity clearly and warn about unknown reliability
     suppliers_text = ""
     for s in observation.get("available_suppliers", []):
         capacity_warning = (
@@ -795,11 +795,12 @@ def build_user_prompt(
         )
         reliability_score = s.get("reliability_score")
         reliability_known = s.get("reliability_known", True)
-        reliability_text = (
-            f"{reliability_score}"
-            if reliability_known and reliability_score is not None
-            else "UNKNOWN (investigate)"
-        )
+        if reliability_known and reliability_score is not None:
+            reliability_text = f"{reliability_score}"
+            if reliability_score < 0.75:
+                reliability_text += " ⛔ UNRELIABLE"
+        else:
+            reliability_text = "⛔ UNKNOWN — MUST INVESTIGATE BEFORE USING"
         suppliers_text += (
             f"\n  {s['id']} — {s['name']} ({s['location']}) | "
             f"Lead: {s['lead_time_days']}d | "
@@ -825,11 +826,14 @@ def build_user_prompt(
         f"Score: {metrics.get('current_score', 0):.3f}"
     )
 
-    # At-risk orders — highlight these
+    # At-risk orders — highlight these with supplier compatibility
     at_risk = [
         o for o in observation.get("orders", [])
         if o["status"] == "at_risk"
     ]
+    suppliers_list = observation.get("available_suppliers", [])
+    budget_remaining = budget.get("remaining", 0.0)
+
     at_risk_text = ""
     if at_risk:
         at_risk_text = "\n\n🚨 ORDERS STILL NEEDING ACTION:\n"
@@ -841,12 +845,22 @@ def build_user_prompt(
                 f"deadline {o['deadline_days']} days — "
                 f"current supplier {o['current_supplier_id']}\n"
             )
-        at_risk_text += (
-            "\nFor each at-risk order, check which suppliers have:\n"
-            "  1. capacity_available >= order quantity\n"
-            "  2. lead_time_days <= deadline_days\n"
-            "  3. reliability_score >= 0.75 (or investigate if unknown)\n"
-        )
+            # Show which suppliers can actually fulfill this order
+            viable = []
+            for s in suppliers_list:
+                cap_ok = s["capacity_available"] >= o["quantity"]
+                lead_ok = s["lead_time_days"] <= o["deadline_days"]
+                extra_cost = max(0.0, o["value_usd"] * (s["cost_multiplier"] - 1.0))
+                budget_ok = extra_cost <= budget_remaining
+                rel_known = s.get("reliability_known", True)
+                rel_score = s.get("reliability_score")
+                rel_ok = rel_known and rel_score is not None and rel_score >= 0.75
+                if cap_ok and lead_ok and budget_ok and rel_ok:
+                    viable.append(f"{s['id']}(cost:{s['cost_multiplier']}x)")
+            if viable:
+                at_risk_text += f"    ✅ VIABLE SUPPLIERS: {', '.join(viable)}\n"
+            else:
+                at_risk_text += f"    ⚠️ No fully viable supplier — consider delay or investigate unknowns\n"
 
     recent_events_text = ""
     if recent_events:
