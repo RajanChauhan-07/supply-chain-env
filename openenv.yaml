@@ -260,6 +260,16 @@ baseline:
     task_easy:   1.0
     task_medium: 0.83
     task_hard:   0.61
+  qwen_model_baseline:
+    model: "Qwen/Qwen2.5-72B-Instruct"
+    provider: "router.huggingface.co/v1"
+    runtime_seconds: 97.66
+    scores:
+      task_easy:   1.000
+      task_medium: 0.491
+      task_hard:   0.615
+    overall_average: 0.702
+    all_passed: true
 
 # ── Infrastructure ────────────────────────────────
 infrastructure:

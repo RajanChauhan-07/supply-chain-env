@@ -245,6 +245,26 @@ python inference.py
 
 This runs `Qwen/Qwen2.5-72B-Instruct` via `router.huggingface.co/v1` against the live HF Space.
 
+### Default baseline results (HF router + Qwen2.5-72B-Instruct)
+
+Live run — `HF_TOKEN` only, no other env vars:
+
+| Task | Score | Steps | Exec Mode | Passed |
+|---|---:|---:|---|---|
+| `task_easy` | `1.000` | 1 | `model_only` | ✅ |
+| `task_medium` | `0.491` | 5 | `hybrid` | ✅ |
+| `task_hard` | `0.615` | 18 | `hybrid` | ✅ |
+| **Overall avg** | **`0.702`** | — | — | **All passed** |
+
+**Total runtime: 97.66 seconds** (well within 20 min limit)
+
+Score breakdown for hard task:
+- high_value_orders_saved: 0.2333 / 0.35
+- revenue_protected: 0.1812 / 0.25
+- budget_not_exceeded: 0.200 / 0.20 ✅
+- escalation_decisions: 0.100 / 0.10 ✅ (all 3 critical disruptions escalated)
+- bad_supplier_penalty: −0.10 (agent used S005_ALT before investigating)
+
 ### Reference model benchmark results
 
 Other validated provider/model combos:
