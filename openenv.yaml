@@ -30,7 +30,7 @@ environment:
 
 # ── API Endpoints ─────────────────────────────────
 api:
-  base_url: "http://localhost:7860"
+  base_url: "https://rajanchauhan-supply-chain-env.hf.space"
   endpoints:
     reset: "POST /reset"
     step:  "POST /step"

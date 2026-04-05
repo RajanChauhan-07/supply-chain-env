@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better layer caching
-COPY backend/requirements.txt .
+# Root requirements.txt includes backend/requirements.txt + openenv-core
+COPY requirements.txt .
+COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy entire project

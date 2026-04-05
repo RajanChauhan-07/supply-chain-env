@@ -99,8 +99,8 @@ Set the required environment variables first:
 ```bash
 export API_BASE_URL="https://your-openai-compatible-endpoint"
 export MODEL_NAME="your-model-name"
-export OPENAI_API_KEY="your-api-key"
-export ENV_URL="http://localhost:7860"
+export HF_TOKEN="your-api-key"
+export ENV_URL="https://rajanchauhan-supply-chain-env.hf.space"
 python inference.py
 ```
 
@@ -165,11 +165,11 @@ supply-chain-env/
 
 | Variable | Required | Purpose |
 |---|---|---|
-| `API_BASE_URL` | Yes for inference | OpenAI-compatible model endpoint |
-| `MODEL_NAME` | Yes for inference | Model identifier |
-| `OPENAI_API_KEY` | Recommended | OpenAI-compatible API token used by `inference.py` |
-| `HF_TOKEN` | Optional alias | Alternative token variable also supported by `inference.py` |
-| `ENV_URL` | Optional | Environment server URL, defaults to `http://localhost:7860` |
+| `API_BASE_URL` | Yes for inference | OpenAI-compatible model endpoint (defaults to Bytez endpoint) |
+| `MODEL_NAME` | Yes for inference | Model identifier (defaults to `openai/gpt-4o`) |
+| `HF_TOKEN` | Yes for inference | Primary API token variable (used by `inference.py`) |
+| `OPENAI_API_KEY` | Optional alias | Alternative token variable also accepted by `inference.py` |
+| `ENV_URL` | Optional | Environment server URL (defaults to the live HF Space) |
 | `STRICT_BASELINE` | Optional | When set to `1` or `true`, disables fallback and reports pure model behavior only |
 
 ## Docker
