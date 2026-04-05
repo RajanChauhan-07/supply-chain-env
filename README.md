@@ -8,6 +8,13 @@ app_port: 7860
 pinned: false
 license: mit
 short_description: OpenEnv supply chain agent environment.
+tags:
+  - openenv
+  - rl-environment
+  - supply-chain
+  - agent-benchmark
+  - openai-api
+  - decision-making
 ---
 
 # Supply Chain Disruption Management Environment
@@ -97,9 +104,13 @@ curl http://localhost:7860/validate
 Set the required environment variables first:
 
 ```bash
-export API_BASE_URL="https://your-openai-compatible-endpoint"
-export MODEL_NAME="your-model-name"
-export HF_TOKEN="your-api-key"
+# HF_TOKEN is the only required variable — ENV_URL and model default automatically
+export HF_TOKEN="your-hf-api-key"
+python inference.py
+
+# Override model or endpoint if needed:
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
 export ENV_URL="https://rajanchauhan-supply-chain-env.hf.space"
 python inference.py
 ```
@@ -223,7 +234,20 @@ The benchmark is designed to evaluate:
 
 ## Model Benchmark Results
 
-Recommended provider/model combo for the official baseline:
+### Default inference setup (HF router)
+
+The script defaults to the HF inference router — setting only `HF_TOKEN` is enough to run:
+
+```bash
+export HF_TOKEN="your-hf-token"
+python inference.py
+```
+
+This runs `Qwen/Qwen2.5-72B-Instruct` via `router.huggingface.co/v1` against the live HF Space.
+
+### Reference model benchmark results
+
+Other validated provider/model combos:
 
 | Provider | Model | Easy | Medium | Hard | Overall | Runtime | Execution |
 |---|---|---:|---:|---:|---:|---:|---|

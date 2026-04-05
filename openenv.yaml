@@ -10,7 +10,7 @@ description: >
   who must reroute orders, substitute suppliers, escalate critical disruptions,
   and minimize revenue loss — all under budget and time constraints.
 
-author: "supply-chain-env"
+author: "RajanChauhan-07"
 license: "MIT"
 tags:
   - supply-chain
@@ -241,7 +241,7 @@ tasks:
 # ── Baseline ──────────────────────────────────────
 baseline:
   script: "inference.py"
-  model: "Recommended provider/model: Bytez + openai/gpt-4o; supports strict model-only mode and fallback-assisted mode"
+  model: "Default: HF router (router.huggingface.co/v1) + Qwen/Qwen2.5-72B-Instruct. Also validated with Bytez + openai/gpt-4o and Groq + llama-3.3-70b-versatile"
   non_llm_validation_script: "baseline_benchmarks.py"
   optional_validation_script: "robustness_checks.py"
   heuristic_policy:
