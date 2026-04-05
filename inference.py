@@ -179,14 +179,33 @@ def normalize_action_payload(payload) -> Optional[dict]:
         return None
 
     if "action_type" in payload:
-        return payload
+        return _fix_common_field_errors(payload)
 
     for key in ["action", "next_action", "response", "output", "json"]:
         nested = payload.get(key)
         if isinstance(nested, dict) and "action_type" in nested:
-            return nested
+            return _fix_common_field_errors(nested)
 
     return None
+
+
+def _fix_common_field_errors(action: dict) -> dict:
+    """Fix common model mistakes in field names without changing semantics."""
+    action = dict(action)  # shallow copy
+
+    # Models frequently output "action_id" when they mean "disruption_id" for escalation
+    if action.get("action_type") == "escalate" and "action_id" in action and "disruption_id" not in action:
+        action["disruption_id"] = action.pop("action_id")
+
+    # Models sometimes output "supplier_id" instead of "new_supplier_id" for reroute
+    if action.get("action_type") == "reroute" and "supplier_id" in action and "new_supplier_id" not in action:
+        action["new_supplier_id"] = action.pop("supplier_id")
+
+    # Models sometimes output "days" instead of "delay_days" for delay
+    if action.get("action_type") == "delay" and "days" in action and "delay_days" not in action:
+        action["delay_days"] = action.pop("days")
+
+    return action
 
 
 def parse_action_response(raw_text: str) -> Optional[dict]:
@@ -698,7 +717,7 @@ AVAILABLE ACTIONS:
    Optional: notify_customer (true/false)
 
 3. delay       — Push order deadline back
-   Required: action_type, order_id, delay_days
+   Required: action_type, order_id, delay_days (positive integer)
    Optional: reason
 
 4. cancel      — Cancel order entirely (last resort)
@@ -713,20 +732,29 @@ AVAILABLE ACTIONS:
    Required: action_type, target_id
    Optional: investigation_type (reliability/capacity/cost)
 
+CRITICAL RULES — FOLLOW THESE EXACTLY:
+- You must take exactly ONE action per turn. Return a single JSON object.
+- Use ONLY IDs that appear in the current observation. Copy IDs exactly (e.g. "S004", "O001", "D002").
+- For reroute: new_supplier_id MUST be an ID from the available_suppliers list.
+- For reroute: the supplier's capacity_available MUST be >= the order's quantity. If not, pick a different supplier.
+- For reroute: the supplier's lead_time_days MUST be <= the order's deadline_days for on-time delivery. Prefer on-time suppliers.
+- For reroute: calculate extra_cost = order.value_usd * (supplier.cost_multiplier - 1.0). This must not exceed budget.remaining.
+- For escalate: disruption_id MUST be an ID from the disruptions list.
+- For investigate: target_id MUST be a supplier ID or disruption ID from the observation.
+- NEVER reroute to a supplier whose reliability_known is false — investigate them first.
+- NEVER repeat an action you already took (check previous steps).
+
 STRATEGY GUIDELINES:
-- Prioritize HIGH priority orders first
-- Check supplier lead_time_days vs order deadline_days before rerouting
-- Check supplier capacity_available vs order quantity
-- Consider cost_multiplier impact on budget
+- First: escalate all CRITICAL severity disruptions immediately
+- Second: investigate any supplier with reliability_known = false before using them
+- Third: reroute at-risk HIGH priority orders to the cheapest on-time reliable supplier
+- Fourth: reroute MEDIUM and LOW priority orders
 - Avoid suppliers with reliability_score below 0.75
-- If reliability is UNKNOWN, investigate before committing unless no better option exists
-- Escalate CRITICAL severity disruptions immediately
-- Investigate unknown suppliers before using them
-- Cancel only as absolute last resort
-- Premium fast suppliers are often unaffordable under tight budgets; verify extra cost first
+- Cancel only as absolute last resort, and only LOW priority orders
+- Extra cost from cost_multiplier reduces budget.remaining — stay within budget
 
 RESPONSE FORMAT:
-You must respond with ONLY a valid JSON object. No explanation. No markdown. No thinking.
+You must respond with ONLY a valid JSON object. No explanation. No markdown. No extra text.
 Example:
 {"action_type": "reroute", "order_id": "O001", "new_supplier_id": "S004"}
 """

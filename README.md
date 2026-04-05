@@ -25,6 +25,24 @@ An OpenEnv-compliant AI training environment where agents learn to manage real-w
 
 This environment simulates the job of an operations manager at a global manufacturing company. The agent must respond to supply disruptions, reroute orders, substitute suppliers, escalate critical issues, and minimize revenue loss — all under budget and time constraints.
 
+## Why This Matters
+
+Supply chain disruption management is a [$1.5 trillion annual problem](https://www.mckinsey.com/capabilities/operations/our-insights). The 2021 chip shortage alone cost the automotive industry $210B. Operations managers must make dozens of rerouting and escalation decisions daily under extreme time pressure with incomplete information. This environment distills that challenge into a tractable format where AI agents can learn the core skills: **triage under uncertainty**, **budget-constrained optimization**, and **knowing when to escalate vs. act autonomously**.
+
+## How It Works
+
+```mermaid
+graph LR
+    A["🤖 AI Agent"] -->|action JSON| B["POST /step"]
+    B --> C{"🏭 Environment"}
+    C -->|observation + reward| A
+    C -->|"done=true"| D["GET /grade"]
+    D -->|"score 0.0-1.0"| E["📊 Results"]
+    F["POST /reset"] -->|initial observation| A
+```
+
+Each episode: `reset()` → receive observation → choose action → `step()` → receive reward → repeat until `done=true` → `grade()` returns final score.
+
 ## Key Features
 
 - 3 task progression: easy, medium, hard
@@ -249,21 +267,21 @@ This runs `Qwen/Qwen2.5-72B-Instruct` via `router.huggingface.co/v1` against the
 
 Live run — `HF_TOKEN` only, no other env vars:
 
-| Task | Score | Steps | Exec Mode | Passed |
-|---|---:|---:|---|---|
-| `task_easy` | `1.000` | 1 | `model_only` | ✅ |
-| `task_medium` | `0.491` | 5 | `hybrid` | ✅ |
-| `task_hard` | `0.615` | 18 | `hybrid` | ✅ |
-| **Overall avg** | **`0.702`** | — | — | **All passed** |
+| Task | Score | Steps | Passed |
+|---|---:|---:|---|
+| `task_easy` | `1.000` | 1 | ✅ |
+| `task_medium` | `0.830` | 5 | ✅ |
+| `task_hard` | `0.615` | 12 | ✅ |
+| **Overall avg** | **`0.815`** | — | **All passed** |
 
-**Total runtime: 97.66 seconds** (well within 20 min limit)
+**Total runtime: 48.21 seconds** (well within 20 min limit)
 
 Score breakdown for hard task:
 - high_value_orders_saved: 0.2333 / 0.35
 - revenue_protected: 0.1812 / 0.25
 - budget_not_exceeded: 0.200 / 0.20 ✅
 - escalation_decisions: 0.100 / 0.10 ✅ (all 3 critical disruptions escalated)
-- bad_supplier_penalty: −0.10 (agent used S005_ALT before investigating)
+- bad_supplier_penalty: −0.10 (S005_ALT has hidden low reliability)
 
 ### Reference model benchmark results
 
