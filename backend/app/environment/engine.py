@@ -28,7 +28,7 @@ class SupplyChainEngine:
     # CORE API METHODS
     # ─────────────────────────────────────
 
-    def reset(self, task_id: str = "task_easy") -> Observation:
+    def reset(self, task_id: str = "task_easy", seed: int = None) -> Observation:
         """
         Start a fresh episode for the given task.
         Returns the initial observation.
@@ -54,7 +54,7 @@ class SupplyChainEngine:
         self.is_ready       = True
 
         # Reset and return initial observation
-        observation = self.current_task.reset()
+        observation = self.current_task.reset(seed=seed)
         return observation
 
     def step(self, action: Action) -> Dict[str, Any]:

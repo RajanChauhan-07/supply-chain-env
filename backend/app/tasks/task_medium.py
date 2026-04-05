@@ -34,7 +34,7 @@ class TaskMedium(BaseTask):
     )
     max_steps = 20
 
-    def reset(self) -> Observation:
+    def reset(self, seed=None) -> Observation:
         self.current_step         = 0
         self.done                 = False
         self.episode_id           = str(uuid.uuid4())[:8]
@@ -182,6 +182,7 @@ class TaskMedium(BaseTask):
         )
 
         self.metrics = Metrics()
+        self._apply_seed_variation(seed)
         return self.get_observation()
 
     def get_final_score(self) -> float:

@@ -33,7 +33,7 @@ class TaskEasy(BaseTask):
     )
     max_steps = 10
 
-    def reset(self) -> Observation:
+    def reset(self, seed=None) -> Observation:
         """Set up easy scenario"""
         self.current_step    = 0
         self.done            = False
@@ -109,6 +109,7 @@ class TaskEasy(BaseTask):
         )
 
         self.metrics = Metrics()
+        self._apply_seed_variation(seed)
 
         return self.get_observation()
 

@@ -1,7 +1,8 @@
 # backend/app/tasks/base.py
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Optional
+import random
 from ..models import (
     Observation, Action, Reward, State,
     Disruption, Order, Supplier, Budget, Metrics, OrderStatus,
@@ -52,8 +53,9 @@ class BaseTask(ABC):
     # ─────────────────────────────────────
 
     @abstractmethod
-    def reset(self) -> Observation:
-        """Reset environment to initial state for this task"""
+    def reset(self, seed: Optional[int] = None) -> Observation:
+        """Reset environment to initial state for this task.
+        If seed is provided, apply bounded numeric variation."""
         pass
 
     @abstractmethod
@@ -733,3 +735,44 @@ class BaseTask(ABC):
             "reward_received": reward_value,
             "was_valid": was_valid
         })
+
+    # ─────────────────────────────────────
+    # SEED-BASED SCENARIO VARIATION
+    # ─────────────────────────────────────
+
+    def _apply_seed_variation(self, seed: Optional[int] = None) -> None:
+        """
+        Apply bounded numeric variation to orders, suppliers, and budget
+        using a deterministic seed. This makes the environment replayable
+        with different scenarios while keeping all IDs and structure intact.
+
+        When seed is None, nothing happens (backward compatible).
+        When seed is 0, nothing happens (canonical scenario).
+        """
+        if seed is None or seed == 0:
+            return
+
+        rng = random.Random(seed)
+
+        # Vary order values (±20%), quantities (±15%), deadlines (±1-2 days)
+        for order in self.orders:
+            order.value_usd = round(order.value_usd * rng.uniform(0.80, 1.20), 2)
+            order.quantity = max(100, int(order.quantity * rng.uniform(0.85, 1.15)))
+            delta = rng.choice([-2, -1, 0, 0, 1, 1, 2])
+            order.deadline_days = max(2, order.deadline_days + delta)
+
+        # Vary supplier costs (±10%), capacities (±15%)
+        for supplier in self.available_suppliers:
+            supplier.cost_multiplier = round(
+                supplier.cost_multiplier * rng.uniform(0.90, 1.10), 2
+            )
+            supplier.capacity_available = max(
+                1000, int(supplier.capacity_available * rng.uniform(0.85, 1.15))
+            )
+
+        # Vary budget (±15%)
+        if self.budget:
+            factor = rng.uniform(0.85, 1.15)
+            self.budget.total = round(self.budget.total * factor, 2)
+            self.budget.remaining = self.budget.total
+            self.budget.spent = 0.0

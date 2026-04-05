@@ -89,22 +89,26 @@ def metadata():
 # ─────────────────────────────────────────
 
 @app.post("/reset", tags=["OpenEnv"])
-def reset(task_id: Optional[str] = "task_easy"):
+def reset(task_id: Optional[str] = "task_easy", seed: Optional[int] = None):
     """
     Reset the environment and start a new episode.
 
     Args:
         task_id: task_easy | task_medium | task_hard
+        seed: Optional integer seed for scenario variation.
+              None or 0 = canonical scenario (default).
+              Any other value = deterministic variant.
 
     Returns:
         Initial observation of the environment.
     """
     try:
-        observation = engine.reset(task_id)
+        observation = engine.reset(task_id, seed=seed)
         return {
             "observation": observation.model_dump(),
             "task_id":     task_id,
-            "message":     f"Environment reset for task: {task_id}",
+            "seed":        seed,
+            "message":     f"Environment reset for task: {task_id}" + (f" (seed={seed})" if seed else ""),
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
