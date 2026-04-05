@@ -16,11 +16,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better layer caching
-# Root requirements.txt includes backend/requirements.txt + openenv-core
-COPY requirements.txt .
+# Install backend dependencies first (better layer caching)
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r backend/requirements.txt
+
+# Install openenv-core for spec compliance and validation
+RUN pip install --no-cache-dir "openenv-core>=0.2.0"
 
 # Copy entire project
 COPY . .
