@@ -1,7 +1,7 @@
 # Dockerfile
 # Hugging Face Spaces compatible — optimized for fast builds (<600s)
 
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim-bookworm
 
 WORKDIR /app
 
