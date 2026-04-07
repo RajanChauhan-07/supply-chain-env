@@ -1,33 +1,21 @@
 # Dockerfile
-# Hugging Face Spaces compatible
-# Uses standard Python slim base image
+# Hugging Face Spaces compatible — optimized for fast builds (<600s)
 
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV PIP_NO_CACHE_DIR=1
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install backend dependencies first (better layer caching)
+# Single pip install — all dependencies in one layer, pinned versions
 COPY backend/requirements.txt backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install -r backend/requirements.txt openenv-core==0.1.0
 
-# Install openenv-core for spec compliance and validation
-RUN pip install --no-cache-dir "openenv-core>=0.2.0"
-
-# Copy entire project
+# Copy project
 COPY . .
 
-# Expose HF Spaces default port
 EXPOSE 7860
 
-# Start FastAPI server
 CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
