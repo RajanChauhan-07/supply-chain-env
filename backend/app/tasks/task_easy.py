@@ -123,11 +123,11 @@ class TaskEasy(BaseTask):
         """
         # ── No actions taken yet → score is 0.0 ──
         if not self.has_resolution_action():
-            return 0.0
+            return 0.001
 
         score = 0.0
         if not self.orders:
-            return 0.0
+            return 0.001
 
         order = self.orders[0]
 
@@ -150,4 +150,5 @@ class TaskEasy(BaseTask):
         if self.done and order.status == OrderStatus.FULFILLED and self.current_step <= self.max_steps * 0.5:
             score += 0.10
 
-        return round(min(score, 1.0), 3)
+        score = round(min(score, 1.0), 3)
+        return max(0.001, min(score, 0.999))

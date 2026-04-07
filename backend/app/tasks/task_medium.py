@@ -195,7 +195,7 @@ class TaskMedium(BaseTask):
         """
         # ── No actions taken yet → score is 0.0 ──
         if not self.has_resolution_action():
-            return 0.0
+            return 0.001
 
         score = 0.0
         total_value = sum(o.value_usd for o in self.orders)
@@ -218,4 +218,5 @@ class TaskMedium(BaseTask):
         if o003 and o003.status == OrderStatus.FULFILLED:
             score += 0.10
 
-        return round(min(max(score, 0.0), 1.0), 3)
+        score = round(min(max(score, 0.0), 1.0), 3)
+        return max(0.001, min(score, 0.999))

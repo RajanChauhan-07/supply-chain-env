@@ -302,7 +302,7 @@ class TaskHard(BaseTask):
         """
         # ── No actions taken yet → score is 0.0 ──
         if not self.has_resolution_action():
-            return 0.0
+            return 0.001
 
         score = 0.0
         total_value = sum(o.value_usd for o in self.orders)
@@ -333,4 +333,5 @@ class TaskHard(BaseTask):
             elif self.current_step <= self.max_steps * 0.80:
                 score += 0.05
 
-        return round(min(max(score, 0.0), 1.0), 3)
+        score = round(min(max(score, 0.0), 1.0), 3)
+        return max(0.001, min(score, 0.999))

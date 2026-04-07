@@ -371,7 +371,7 @@ def validate():
         for task_id in ["task_easy", "task_medium", "task_hard"]:
             test_engine.reset(task_id)
             g     = test_engine.grade()
-            valid = 0.0 <= g["score"] <= 1.0
+            valid = 0.0 < g["score"] < 1.0
             score_results[task_id] = g["score"]
             if not valid:
                 all_scores_valid = False

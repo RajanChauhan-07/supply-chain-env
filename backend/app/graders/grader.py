@@ -36,7 +36,7 @@ class EasyGrader(BaseGrader):
         if not task.has_resolution_action():
             return {
                 "task_id": self.task_id,
-                "score": 0.0,
+                "score": 0.001,
                 "breakdown": breakdown,
                 "passed": False,
                 "summary": self._build_summary(0.0, breakdown, order, task),
@@ -136,7 +136,7 @@ class MediumGrader(BaseGrader):
         if not task.has_resolution_action():
             return {
                 "task_id": self.task_id,
-                "score": 0.0,
+                "score": 0.001,
                 "breakdown": breakdown,
                 "passed": False,
                 "summary": self._build_summary(0.0, breakdown, task),
@@ -255,7 +255,7 @@ class HardGrader(BaseGrader):
         if not task.has_resolution_action():
             return {
                 "task_id": self.task_id,
-                "score": 0.0,
+                "score": 0.001,
                 "breakdown": breakdown,
                 "passed": False,
                 "summary": self._build_summary(

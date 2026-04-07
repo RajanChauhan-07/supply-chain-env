@@ -36,5 +36,11 @@ class BaseGrader(ABC):
         return round(numerator / denominator, 4)
 
     def _clamp(self, value: float) -> float:
-        """Clamp value between 0.0 and 1.0"""
-        return round(min(max(value, 0.0), 1.0), 4)
+        """Clamp value to open interval (0, 1) — strictly between 0 and 1.
+        Validator requires scores != 0.0 and != 1.0."""
+        clamped = round(min(max(value, 0.0), 1.0), 4)
+        if clamped <= 0.0:
+            return 0.001
+        if clamped >= 1.0:
+            return 0.999
+        return clamped
