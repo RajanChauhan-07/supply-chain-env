@@ -1,395 +1,227 @@
----
-title: Supply Chain Environment
-emoji: "🚚"
-colorFrom: blue
-colorTo: green
-sdk: docker
-app_port: 7860
-pinned: false
-license: mit
-short_description: OpenEnv supply chain agent environment.
-tags:
-  - openenv
-  - rl-environment
-  - supply-chain
-  - agent-benchmark
-  - openai-api
-  - decision-making
----
+# 🔥 God-Level Supply Chain Disruption Management Environment
 
-# Supply Chain Disruption Management Environment
+> A stochastic, multi-tier, multi-objective supply chain RL environment with Apple-scale logistics complexity.
 
-An OpenEnv-compliant AI training environment where agents learn to manage real-world supply chain disruptions.
+[![OpenEnv Compatible](https://img.shields.io/badge/OpenEnv-Compatible-brightgreen)](https://huggingface.co/openenv)
 
-## Overview
+## 🏗️ Architecture
 
-This environment simulates the job of an operations manager at a global manufacturing company. The agent must respond to supply disruptions, reroute orders, substitute suppliers, escalate critical issues, and minimize revenue loss — all under budget and time constraints.
-
-## Why This Matters
-
-Supply chain disruption management is a [$1.5 trillion annual problem](https://www.mckinsey.com/capabilities/operations/our-insights). The 2021 chip shortage alone cost the automotive industry $210B. Operations managers must make dozens of rerouting and escalation decisions daily under extreme time pressure with incomplete information. This environment distills that challenge into a tractable format where AI agents can learn the core skills: **triage under uncertainty**, **budget-constrained optimization**, and **knowing when to escalate vs. act autonomously**.
-
-## How It Works
-
-```mermaid
-graph LR
-    A["🤖 AI Agent"] -->|action JSON| B["POST /step"]
-    B --> C{"🏭 Environment"}
-    C -->|observation + reward| A
-    C -->|"done=true"| D["GET /grade"]
-    D -->|"score 0.0-1.0"| E["📊 Results"]
-    F["POST /reset"] -->|initial observation| A
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                      OpenEnv HTTP API Layer                          │
+│          POST /reset  ·  POST /step  ·  GET /grade  ·  GET /validate│
+├──────────────────────────────────────────────────────────────────────┤
+│                    SupplyChainEngine v2.0                             │
+├──────────────────────────────────────────────────────────────────────┤
+│ WorldState                                                           │
+│ ┌──────────────┐ ┌───────────────┐ ┌──────────────┐ ┌────────────┐  │
+│ │SupplyNetwork │ │MarketDynamics │ │  RiskEngine  │ │Constraints │  │
+│ │Tier 1/2/3    │ │FX rates       │ │Stochastic    │ │ITAR/EAR    │  │
+│ │Lanes+Routes  │ │Spot freight   │ │10 event types│ │SLA floors  │  │
+│ │4 Carriers    │ │Insurance loop │ │Historical    │ │Capacity    │  │
+│ │Bullwhip      │ │Fuel surcharge │ │calibrated    │ │Budget cap  │  │
+│ └──────────────┘ └───────────────┘ └──────────────┘ └────────────┘  │
+├──────────────────────────────────────────────────────────────────────┤
+│ 10 Tasks: foundational → multi_tier → stochastic → adversarial      │
+│           → full_simulation + 5 legacy tasks                         │
+├──────────────────────────────────────────────────────────────────────┤
+│ Multi-Objective Grading: Cost · Service · Launch · Carbon/ESG        │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-Each episode: `reset()` → receive observation → choose action → `step()` → receive reward → repeat until `done=true` → `grade()` returns final score.
+## 🚀 What Makes This Different
 
-## Key Features
-
-- 3 task progression: easy, medium, hard
-- Typed FastAPI environment with `reset`, `step`, `state`, `tasks`, `grade`, and `validate`
-- Structured action, observation, reward, and state models
-- Step-level rewards plus final deterministic grading
-- **Seed-based scenario variation** — pass `seed` to `/reset` for deterministic variant scenarios (different order values, supplier costs, budgets) while keeping all IDs and grader logic intact
-- Dockerized backend suitable for Hugging Face Spaces
-- Root-level `inference.py` baseline runner using the OpenAI client
-- Root-level `baseline_benchmarks.py` for explicit random and heuristic baselines
-
-## Tasks
-
-| Task ID | Name | Difficulty | Max Steps | Pass Threshold | Expected Score |
-|---|---|---|---|---|---|
-| `task_easy` | Single Lane Disruption | Easy | 10 | 0.60 | 0.8 - 1.0 |
-| `task_medium` | Multi-Point Failure | Medium | 20 | 0.45 | 0.7 - 0.9 |
-| `task_hard` | Cascade Crisis | Hard | 30 | 0.30 | 0.45 - 0.7 |
-
-## Action Space
-
-| Action | Description |
-|---|---|
-| `reroute` | Move an order to a different supplier |
-| `substitute` | Replace product with an alternative |
-| `delay` | Push order deadline back |
-| `cancel` | Cancel order entirely (last resort) |
-| `escalate` | Escalate disruption to management |
-| `investigate` | Get more info about supplier or disruption |
-
-## Observation Space
-
-At every step the agent receives:
-- List of active disruptions with severity
-- List of orders at risk with value, deadline and priority
-- List of available alternative suppliers
-- For the hard task, risky supplier reliability can be hidden until investigated
-- Current budget status
-- Running metrics and score
-
-## Reward Function
-
-| Positive Rewards | Value |
-|---|---|
-| Order fulfilled on time | +0.15 to +0.25 |
-| Good cost-efficient supplier choice | +0.05 |
-| Correct escalation of critical disruption | +0.08 |
-| Useful investigation | +0.05 |
-| All high-value orders saved | +0.20 |
-| Finished under budget | +0.10 |
-| Finished early | +0.05 |
-
-| Negative Penalties | Value |
-|---|---|
-| Order deadline missed | -0.10 |
-| Order lost completely | -0.15 |
-| Budget exceeded | -0.10 |
-| Unreliable supplier chosen | -0.05 |
-| Redundant action | -0.05 |
-| Invalid action | -0.05 |
-
-## Running Locally
-
-### 1. Start server
-```bash
-pip install -r requirements.txt
-uvicorn backend.app.main:app --host 0.0.0.0 --port 7860
-```
-
-### 2. Inspect the environment
-```bash
-curl http://localhost:7860/
-curl http://localhost:7860/tasks
-curl http://localhost:7860/validate
-```
-
-### 3. Run the baseline agent
-Set the required environment variables first:
-
-```bash
-# HF_TOKEN is the only required variable — ENV_URL and model default automatically
-export HF_TOKEN="your-hf-api-key"
-python inference.py
-
-# Override model or endpoint if needed:
-export API_BASE_URL="https://router.huggingface.co/v1"
-export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
-export ENV_URL="https://rajanchauhan-supply-chain-env.hf.space"
-python inference.py
-```
-
-### 4. Run non-LLM validation baselines
-
-```bash
-export ENV_URL="http://localhost:7860"
-python baseline_benchmarks.py
-```
-
-### 5. Run lightweight repeatability and robustness checks
-
-```bash
-export ENV_URL="http://localhost:7860"
-python robustness_checks.py
-```
-
-### 6. Run the final pre-submission checks
-
-```bash
-bash validate-submission.sh https://your-space.hf.space .
-```
-
-This script mirrors the hackathon checklist by checking:
-- live HF Space `/reset`
-- `docker build`
-- `openenv validate`
-
-## Project Structure
-
-```text
-supply-chain-env/
-├── requirements.txt
-├── backend/app/main.py
-├── backend/app/environment/
-├── backend/app/graders/
-├── backend/app/models/
-├── backend/app/tasks/
-├── backend/tests/
-├── baseline_benchmarks.py
-├── inference.py
-├── robustness_checks.py
-├── validate-submission.sh
-├── openenv.yaml
-├── Dockerfile
-└── README.md
-```
-
-## API Endpoints
-
-| Endpoint | Method | Purpose |
+| Feature | Academic Benchmarks | This Environment |
 |---|---|---|
-| `/` | `GET` | Health check |
-| `/reset` | `POST` | Start a task episode |
-| `/step` | `POST` | Submit one action |
-| `/state` | `GET` | Read full current state |
-| `/tasks` | `GET` | List tasks |
-| `/grade` | `GET` | Grade current episode |
-| `/validate` | `GET` | Run self-checks |
+| Supply tiers | Single (Tier 1 only) | **3 tiers** with cascade propagation |
+| FX hedging | Not modeled | **4 currency pairs** with mean-reverting random walks |
+| Insurance | Not modeled | **Dynamic premiums** that rise with claims (feedback loop) |
+| Carrier reliability | Uniform | **Lane-specific, time-variant** per carrier × lane |
+| Legal constraints | Soft penalties | **ITAR/EAR hard action masks** — violations REJECTED |
+| Demand signal | Static | **Bullwhip effect** — 5% retail → 40% at Tier 3 |
+| Disruptions | Pre-programmed | **Stochastic injection** from 10 historical distributions |
+| Objectives | Single (cost) | **4-pillar**: cost, service, launch precision, ESG |
+| Observation space | ~7 fields | **20+ fields** including DCs, shipments, lanes, carriers |
+| Action space | 6 types | **12 types** including hedge_fx, rebalance_dc, insure |
 
-## Environment Variables
+## 📋 Tasks
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `API_BASE_URL` | Yes for inference | OpenAI-compatible model endpoint (defaults to Bytez endpoint) |
-| `MODEL_NAME` | Yes for inference | Model identifier (defaults to `openai/gpt-4o`) |
-| `HF_TOKEN` | Yes for inference | Primary API token variable (used by `inference.py`) |
-| `OPENAI_API_KEY` | Optional alias | Alternative token variable also accepted by `inference.py` |
-| `ENV_URL` | Optional | Environment server URL (defaults to the live HF Space) |
-| `STRICT_BASELINE` | Optional | When set to `1` or `true`, disables fallback and reports pure model behavior only |
+| # | Task ID | Difficulty | Steps | Key Mechanic |
+|---|---|---|---|---|
+| 1 | `task_foundational` | Easy | 10 | Single-tier rerouting, basic constraints |
+| 2 | `task_multi_tier` | Medium | 20 | Tier 1/2/3 cascading, bullwhip effect |
+| 3 | `task_stochastic` | Hard | 25 | Dynamic FX, stochastic disruptions, launch pressure |
+| 4 | `task_adversarial_v2` | Hard | 20 | Trap suppliers, insurance feedback loops |
+| 5 | `task_full_sim` | Expert | 30 | Everything: multi-tier + FX + ITAR + bullwhip + traps |
+| 6-10 | Legacy (v1) | Various | 10-30 | Simpler scenarios for backward compatibility |
 
-## Docker
+## 🎯 Multi-Objective Grading
 
-Build and run locally:
+Every task is graded on 4 real-world objectives:
 
+1. **Cost Minimization** (30%) — Freight + handling + duties + FX hedging + insurance
+2. **Service Level** (30%) — On-time delivery, stockout avoidance, SLA compliance
+3. **Launch Precision** (25%) — Zero late shipments during launch window
+4. **Carbon/ESG** (15%) — Sea-over-air preference, emissions per unit
+
+## 🔧 Simulation Core
+
+### Multi-Tier Supply Network
+- **Tier 1 (Assembly):** Foxconn, Pegatron, Jabil, Flex — 4 suppliers
+- **Tier 2 (Components):** Corning, Samsung Display, LG, TSMC, Infineon — 5 suppliers
+- **Tier 3 (Raw Materials):** Shin-Etsu, MP Materials, Albemarle, Glencore — 4 suppliers
+- **Lanes:** 9 shipping lanes (sea, air, rail, truck) with congestion modeling
+- **Carriers:** Maersk, FedEx, DHL, COSCO — lane-specific reliability
+
+### Market Dynamics
+- **FX Rates:** USD/CNY, USD/EUR, USD/INR, USD/JPY — mean-reverting random walks
+- **Spot Freight:** Seasonal pattern + disruption surges
+- **Insurance:** Base premium × (1 + claim_count × 0.3) — penalizes risky routing
+- **Fuel Surcharge:** Stochastic drift, 0.5-2.0x multiplier
+
+### Stochastic Risk Engine (10 Disruption Types)
+```
+port_strike (6%)  ·  typhoon (10%, seasonal)  ·  tariff_shock (4%)
+suez_blockage (2%)  ·  chip_shortage (3%)  ·  cyber_attack (5%)
+pandemic_wave (2%)  ·  earthquake (1%)  ·  sanctions (3%)  ·  labor_shortage (8%)
+```
+
+### Hard Constraints (Action Masks)
+- **ITAR/EAR:** 3 export control restrictions — certain routes FORBIDDEN
+- **SLA Floors:** 6 DCs with minimum fill rates (80-90%)
+- **Capacity Ceilings:** Port throughput limits
+- **Budget Envelope:** $5M quarterly cap
+
+## 📊 Observation Space (20+ fields)
+
+```json
+{
+  "task_id": "task_full_sim",
+  "step": 5,
+  "disruptions": [...],
+  "orders": [...],
+  "available_suppliers": [...],
+  "supply_tiers": {"tier1": {...}, "tier2": {...}, "tier3": {...}},
+  "fx_rates": {"USD_CNY": {"rate": 7.28, "change_pct": +0.55}},
+  "insurance_premiums": {"SH_LAX": {"rate_pct": 2.60, "claims": 1}},
+  "bullwhip_state": {"tier1": "+1.2%", "tier2": "+3.6%", "tier3": "+9.6%"},
+  "shipping_lanes": [...],
+  "carrier_options": [...],
+  "demand_forecast": {"americas": {"30d": 45000, "60d": 42000}},
+  "launch_countdown": 10,
+  "dc_inventory": {"DC_LAX": {"stock": {"iPhone": 25000}}},
+  "legal_constraints": [{"id": "ITAR_001", ...}],
+  "sla_status": {"DC_LAX": {"fill_rate": 0.87, "floor": 0.85}},
+  "capacity_utilization": {"PORT_SH": {"used": 0, "max": 100000}}
+}
+```
+
+## 🎮 Action Space (12 Types)
+
+```python
+# Basic (v1)
+"reroute", "substitute", "delay", "cancel", "escalate", "investigate"
+
+# Advanced (v2)
+"hedge_fx"         # Buy FX forward contract on a currency pair
+"select_carrier"   # Choose specific carrier for a lane
+"rebalance_dc"     # Transfer inventory between DCs
+"expedite"         # Pay premium for faster shipping
+"insure"           # Buy cargo insurance on a shipment
+"pre_clear"        # Pre-file customs documentation
+```
+
+## 🏃 Quick Start
+
+### Local Development
+```bash
+pip install fastapi uvicorn pydantic httpx openai
+cd backend
+uvicorn app.main:app --host 0.0.0.0 --port 7860
+```
+
+### Docker
 ```bash
 docker build -t supply-chain-env .
 docker run -p 7860:7860 supply-chain-env
 ```
 
-## Baseline Hierarchy
-
-The project now exposes three benchmark tiers:
-
-| Baseline | Purpose | Current validated result |
-|---|---|---|
-| Random policy | Sanity floor; proves the environment is not trivially easy | Strong performance drop from easy to hard |
-| Heuristic policy | Domain baseline using the deterministic fallback policy | Consistently strong and reproducible |
-| Model baseline | Real provider/model evaluation | Recommended: Bytez `openai/gpt-4o` |
-
-### Non-LLM baseline results
-
-| Baseline | Easy | Medium | Hard | Overall |
-|---|---:|---:|---:|---:|
-| Random policy (5 seeds) | `0.670 +/- 0.384` | `0.377 +/- 0.162` | `0.183 +/- 0.126` | `0.410 +/- 0.321` |
-| Heuristic policy | `1.000` | `0.830` | `0.615` | `0.815` |
-
-This gives the desired hierarchy:
-- random << heuristic on medium and hard
-- easy remains solvable
-- the hard task stays meaningfully difficult
-
-### Comparison View
-
-| View | Easy | Medium | Hard | Overall |
-|---|---:|---:|---:|---:|
-| Random mean | `0.670` | `0.377` | `0.183` | `0.410` |
-| Heuristic | `1.000` | `0.830` | `0.615` | `0.815` |
-| Recommended model baseline | `1.000` | `0.830` | `0.615` | `0.815` |
-
-## What This Environment Measures
-
-The benchmark is designed to evaluate:
-
-- budget-aware planning under tight operational constraints
-- prioritization of high-value orders when not everything can be saved
-- escalation judgment for critical disruptions
-- investigation behavior when supplier reliability is hidden
-- avoidance of invalid or infeasible actions in a sequential setting
-
-## Model Benchmark Results
-
-### Default inference setup (HF router)
-
-The script defaults to the HF inference router — setting only `HF_TOKEN` is enough to run:
-
+### Run Inference
 ```bash
-export HF_TOKEN="your-hf-token"
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-72B-Instruct"
+export HF_TOKEN="your-token"
 python inference.py
 ```
 
-This runs `Qwen/Qwen2.5-72B-Instruct` via `router.huggingface.co/v1` against the live HF Space.
-
-### Default baseline results (HF router + Qwen2.5-72B-Instruct)
-
-Live run — `HF_TOKEN` only, no other env vars:
-
-| Task | Score | Steps | Passed |
-|---|---:|---:|---|
-| `task_easy` | `1.000` | 1 | ✅ |
-| `task_medium` | `0.709 – 0.830` | 5–9 | ✅ |
-| `task_hard` | `0.615 – 0.752` | 12–22 | ✅ |
-| **Overall avg** | **`0.820`** | — | **All passed** |
-
-**Total runtime: 48–130 seconds** (well within 20 min limit)
-
-Scores vary slightly across runs due to LLM non-determinism. Hard task score depends on whether the model investigates hidden-reliability suppliers before routing to them.
-
-### Reference model benchmark results
-
-Other validated provider/model combos:
-
-| Provider | Model | Easy | Medium | Hard | Overall | Runtime | Execution |
-|---|---|---:|---:|---:|---:|---:|---|
-| Bytez | `openai/gpt-4o` | `1.000` | `0.830` | `0.615` | `0.815` | `53.1s` | `model_only`, `hybrid`, `hybrid` |
-
-Other tested reference runs:
-
-| Provider | Model | Easy | Medium | Hard | Overall | Runtime |
-|---|---|---:|---:|---:|---:|---:|
-| Groq | `llama-3.3-70b-versatile` | `1.000` | `0.830` | `0.608` | `0.812` | `228.9s` |
-| Bytez | `anthropic/claude-opus-4-5` | `1.000` | `0.491` | `0.618` | `0.703` | `78.3s` |
-
-Pure model-only runs can be collected by re-running the same providers with `STRICT_BASELINE=1`. The recommended baseline table above is intentionally the resilient judge-facing run because it proves the environment loop completes even if an external provider degrades mid-episode.
-
-## Baseline Behavior
-
-- `inference.py` always uses the OpenAI client interface when a model endpoint is available.
-- The script now reports whether each task run was `model_only`, `hybrid`, or `fallback_only`.
-- If the external model call fails or credentials are missing, the default baseline falls back to a deterministic built-in policy so the run can still complete.
-- If you want a judge-style pure model run, set `STRICT_BASELINE=1` to disable fallback recovery.
-- The heuristic baseline is the same deterministic policy used for fallback recovery.
-- Verified deterministic heuristic/fallback scores in local testing:
-
-| Task | Deterministic fallback score |
-|---|---:|
-| `task_easy` | `1.0` |
-| `task_medium` | approximately `0.83` |
-| `task_hard` | approximately `0.61` |
-
-## Judge Notes
-
-- The environment itself is deterministic; score variance should come primarily from agent/model behavior, not from stochastic world generation.
-- The repository now includes explicit non-LLM baselines so environment quality can be evaluated separately from provider/model quality.
-- Tasks are meant to separate weak, decent, and strong agents:
-  - `task_easy` should be straightforward
-  - `task_medium` should reward prioritization under budget pressure
-  - `task_hard` should require escalation, tradeoffs, and investigation of hidden supplier risk
-- The baseline runner can be used in two modes:
-  - default mode: resilient and fallback-assisted if the external provider fails
-  - strict mode: `STRICT_BASELINE=1` for pure model-only evaluation
-- Final task success is determined by deterministic graders with normalized scores in `[0.0, 1.0]`.
-
-## Optional Validation Additions
-
-- `robustness_checks.py` provides a lightweight repeatability pass:
-  - repeated `/validate` health check
-  - burst reset cycling across tasks
-  - heuristic repeatability check
-  - random-baseline hierarchy check
-  - invalid-action penalty sanity check
-- Hard-task terminal state now exposes extra diagnostics in `score_breakdown`:
-  - `invalid_action_count`
-  - `investigation_count`
-  - `hidden_risk_suppliers_investigated`
-  - `hidden_risk_suppliers_remaining`
-  - `hidden_risk_supplier_used`
-
-Current optional-validation results:
-
-| Check | Result |
-|---|---|
-| Repeated `/validate` | `9 / 9` checks passing |
-| Burst reset cycle | `10 / 10` successful |
-| Heuristic repeatability | `std = 0.0` on all three tasks |
-| Random hierarchy | `easy > medium > hard` = `true` |
-| Invalid-action sanity | score remains `0.0`, pass = `false` |
-
-## Future-Work RL Foundation
-
-The repository now includes a first-pass RL integration layer for future research work:
-
-- `backend/app/rl/encoding.py`
-  - fixed-length observation encoding for numeric RL agents
-- `backend/app/rl/action_catalog.py`
-  - fixed-size discrete action catalog built from the current observation
-- `backend/app/rl/gym_wrapper.py`
-  - Gymnasium-compatible wrapper around the in-process engine
-- `rl_smoke.py`
-  - wrapper smoke script with optional `check_env` and PPO-ready flow
-- `requirements-rl.txt`
-  - optional RL-only dependencies (`gymnasium`, `numpy`, `stable-baselines3`)
-
-Example future-work commands:
-
+### Validate
 ```bash
-pip install -r requirements-rl.txt
-python rl_smoke.py --task-id task_hard
-python rl_smoke.py --task-id task_hard --check-env
-python rl_smoke.py --task-id task_hard --train-ppo --timesteps 2048
+curl http://localhost:7860/validate
 ```
 
-What this enables next:
-- Gym-style `check_env()` validation
-- PPO smoke training without changing the core OpenEnv API
-- random < heuristic < PPO comparisons on a shared wrapper
-- later multi-seed RL learning curves and ablations
+## 🧪 Baseline Scores
 
-## Local Validation
+| Task | Baseline Score | Approach |
+|---|---|---|
+| `task_foundational` | 0.30 | Untouched (no action) |
+| `task_multi_tier` | 0.25 | Untouched |
+| `task_stochastic` | 0.50 | Untouched |
+| `task_adversarial_v2` | 0.35 | Untouched |
+| `task_full_sim` | 0.38 | Untouched |
 
-Run the API tests, engine/grader tests, and import checks:
+## 📐 API Reference
 
-```bash
-backend/.venv/bin/python -m unittest discover -s backend/tests -p "test_*.py"
-backend/.venv/bin/python -c "import inference; print('imports_ok')"
+All endpoints follow the OpenEnv standard:
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/reset?task_id=...&seed=...` | Reset environment for a specific task |
+| POST | `/step` | Take one action (JSON body) |
+| GET | `/grade` | Get current/final score with multi-objective breakdown |
+| GET | `/state` | Read-only state snapshot |
+| GET | `/tasks` | List all available tasks |
+| GET | `/validate` | Self-validation smoke test |
+| GET | `/schema` | JSON schemas for action/observation/state |
+| GET | `/health` | Health check |
+
+## 📁 Project Structure
+
+```
+supply-chain-env/
+├── backend/
+│   └── app/
+│       ├── main.py                    # FastAPI application
+│       ├── config.py                  # Settings
+│       ├── environment/
+│       │   ├── engine.py              # SupplyChainEngine
+│       │   └── disruptions.py         # Disruption utilities
+│       ├── simulation/                # ★ V2 Simulation Core
+│       │   ├── world_state.py         # Master state
+│       │   ├── supply_network.py      # Multi-tier network
+│       │   ├── market_dynamics.py     # FX, freight, insurance
+│       │   ├── risk_engine.py         # Stochastic disruptions
+│       │   └── constraints.py         # ITAR, SLA, capacity
+│       ├── models/
+│       │   ├── observation.py         # 20+ field observation
+│       │   ├── action.py              # 12 action types
+│       │   ├── reward.py              # Multi-objective rewards
+│       │   └── state.py               # State model
+│       ├── tasks/
+│       │   ├── base.py                # BaseTask
+│       │   ├── task_foundational.py   # Task 1: Basic
+│       │   ├── task_multi_tier.py     # Task 2: Cascading
+│       │   ├── task_stochastic.py     # Task 3: Dynamic
+│       │   ├── task_adversarial_v2.py # Task 4: Traps
+│       │   └── task_full_sim.py       # Task 5: Everything
+│       └── graders/
+│           ├── base.py                # BaseGrader
+│           └── grader.py              # 10 graders
+├── inference.py                       # Baseline agent
+├── openenv.yaml                       # Environment spec
+├── Dockerfile
+└── README.md
 ```
 
-## Notes
+## 📄 License
 
-- The environment itself is deterministic and lightweight.
-- The baseline can use a deterministic fallback policy when the external model endpoint is unavailable.
-- Helper scripts in the repo are local wrappers around `inference.py`; they do not store secrets.
+MIT

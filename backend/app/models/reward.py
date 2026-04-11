@@ -75,6 +75,45 @@ class RewardBreakdown(BaseModel):
         description="Penalty for doing nothing when crisis is active (negative)"
     )
 
+    # ═══════════════════════════════════════
+    # V2: Multi-Objective Breakdown
+    # ═══════════════════════════════════════
+
+    cost_score: float = Field(
+        default=0.0,
+        description="Cost optimization score (freight + handling + duties + FX + insurance)"
+    )
+
+    service_level_score: float = Field(
+        default=0.0,
+        description="Service level score (on-time rate, stockout avoidance, SLA compliance)"
+    )
+
+    launch_precision_score: float = Field(
+        default=0.0,
+        description="Launch precision (zero late launch shipments, global availability sync)"
+    )
+
+    esg_score: float = Field(
+        default=0.0,
+        description="Carbon/ESG score (sea-over-air preference, emissions per unit)"
+    )
+
+    constraint_compliance: float = Field(
+        default=0.0,
+        description="Hard constraint compliance (ITAR, SLA floors, capacity — should be 1.0)"
+    )
+
+    cascade_prevention: float = Field(
+        default=0.0,
+        description="Score for preventing bullwhip/cascade amplification"
+    )
+
+    trap_detection: float = Field(
+        default=0.0,
+        description="Score for detecting and avoiding supplier traps"
+    )
+
 
 # ─────────────────────────────────────────
 # MAIN REWARD MODEL

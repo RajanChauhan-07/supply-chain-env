@@ -312,13 +312,26 @@ def validate():
         checks["engine_init"] = {"passed": False, "message": str(e)}
         all_pass = False
 
-    # ── Check 2: All 3 tasks reset ────────────
-    for task_id in ["task_easy", "task_medium", "task_hard"]:
+    # ── Check 2: All tasks reset ────────────
+    v1_tasks = ["task_easy", "task_medium", "task_hard"]
+    v2_tasks = ["task_foundational", "task_multi_tier", "task_stochastic",
+                "task_adversarial_v2", "task_full_sim"]
+    all_task_ids = v1_tasks + v2_tasks
+
+    for task_id in all_task_ids:
         try:
             obs = test_engine.reset(task_id)
+            v2_marker = ""
+            if task_id in v2_tasks:
+                v2_fields = []
+                if obs.supply_tiers: v2_fields.append("supply_tiers")
+                if obs.fx_rates: v2_fields.append("fx_rates")
+                if obs.bullwhip_state: v2_fields.append("bullwhip")
+                if obs.legal_constraints: v2_fields.append("ITAR")
+                v2_marker = f" | v2 fields: [{', '.join(v2_fields)}]" if v2_fields else ""
             checks[f"reset_{task_id}"] = {
                 "passed":  True,
-                "message": f"Reset OK — {len(obs.orders)} orders, {len(obs.disruptions)} disruptions"
+                "message": f"Reset OK — {len(obs.orders)} orders, {len(obs.disruptions)} disruptions{v2_marker}"
             }
         except Exception as e:
             checks[f"reset_{task_id}"] = {"passed": False, "message": str(e)}
@@ -364,11 +377,11 @@ def validate():
         checks["grader_works"] = {"passed": False, "message": str(e)}
         all_pass = False
 
-    # ── Check 6: Scores in valid range ────────
+    # ── Check 6: ALL task scores in valid range ────────
     try:
         all_scores_valid = True
         score_results    = {}
-        for task_id in ["task_easy", "task_medium", "task_hard"]:
+        for task_id in all_task_ids:
             test_engine.reset(task_id)
             g     = test_engine.grade()
             valid = 0.0 < g["score"] < 1.0
@@ -378,7 +391,7 @@ def validate():
 
         checks["scores_in_range"] = {
             "passed":  all_scores_valid,
-            "message": f"All scores in [0,1]: {score_results}"
+            "message": f"All scores in (0,1): {score_results}"
         }
     except Exception as e:
         checks["scores_in_range"] = {"passed": False, "message": str(e)}
@@ -387,15 +400,33 @@ def validate():
     # ── Check 7: Tasks list ───────────────────
     try:
         tasks = test_engine.list_tasks()
-        has_3 = len(tasks) >= 3
+        has_enough = len(tasks) >= 5
         checks["tasks_count"] = {
-            "passed":  has_3,
-            "message": f"Found {len(tasks)} tasks (need >= 3)"
+            "passed":  has_enough,
+            "message": f"Found {len(tasks)} tasks (need >= 5)"
         }
-        if not has_3:
+        if not has_enough:
             all_pass = False
     except Exception as e:
         checks["tasks_count"] = {"passed": False, "message": str(e)}
+        all_pass = False
+
+    # ── Check 8: V2 simulation core ──────────
+    try:
+        from .simulation import WorldState
+        ws = WorldState(seed=42, difficulty=1.0)
+        events = ws.advance_step()
+        obs_dict = ws.to_full_observation()
+        v2_keys = len(obs_dict.keys())
+        checks["simulation_core"] = {
+            "passed": v2_keys >= 15,
+            "message": f"WorldState OK — {v2_keys} observation keys, "
+                       f"tiers={len(ws.network.tiers)}, "
+                       f"carriers={len(ws.network.carriers)}, "
+                       f"FX pairs={len(ws.market.fx_rates)}"
+        }
+    except Exception as e:
+        checks["simulation_core"] = {"passed": False, "message": str(e)}
         all_pass = False
 
     return {

@@ -3,12 +3,16 @@
 # Must be in root directory
 
 name: supply-chain-disruption-env
-version: "1.0.0"
+version: "3.0.0"
 description: >
-  An OpenEnv-compliant AI training environment where agents learn to manage
-  real-world supply chain disruptions. The agent acts as an operations manager
-  who must reroute orders, substitute suppliers, escalate critical disruptions,
-  and minimize revenue loss — all under budget and time constraints.
+  A stochastic, multi-tier, multi-objective supply chain RL environment
+  with Apple-scale logistics complexity. Features 10 tasks across 5
+  difficulty levels, from basic rerouting to full simulation including
+  multi-tier supplier cascading, FX hedging, lane-specific carrier
+  reliability, insurance feedback loops, ITAR/EAR hard constraints,
+  bullwhip demand amplification, product launch pressure, and 6 global
+  distribution centers. Multi-objective grading across 4 real-world
+  pillars: cost, service, launch precision, and ESG/carbon.
 
 author: "RajanChauhan-07"
 license: "MIT"
@@ -19,14 +23,42 @@ tags:
   - openenv
   - logistics
   - decision-making
+  - cascading-effects
+  - adversarial-traps
+  - partial-observability
+  - multi-objective
+  - multi-tier
+  - fx-hedging
+  - insurance-feedback
+  - bullwhip-effect
+  - stochastic-disruptions
+  - itar-compliance
+  - esg-carbon
 
 # ── Environment Info ──────────────────────────────
 environment:
   type: sequential
   domain: supply-chain-operations
   real_world: true
-  stochastic: false
+  stochastic: true
   max_episode_steps: 30
+  unique_mechanics:
+    # V2 mechanics
+    - multi_tier_supply: "3-tier supply network (assembly → components → raw materials) with cascade propagation"
+    - bullwhip_effect: "5% retail demand shift → 15% at Tier 2 → 40% at Tier 3"
+    - fx_hedging: "4 currency pairs with mean-reverting random walks; hedge_fx action"
+    - lane_carrier_reliability: "9 shipping lanes × 4 carriers with time-variant performance"
+    - insurance_feedback: "Dynamic premiums rise with claims — penalizes risky routing loops"
+    - itar_hard_constraints: "Export control action masks — ITAR violations REJECTED not penalized"
+    - stochastic_disruptions: "10 event types from calibrated historical distributions"
+    - product_launch: "Countdown pressure; critical orders MUST arrive on time"
+    - dc_inventory: "6 global DCs with SLA floor constraints"
+    - multi_objective_grading: "4-pillar scoring: cost, service, launch, ESG"
+    # V1 mechanics
+    - cascading_disruptions: "Rerouting too many orders to one region triggers secondary disruptions"
+    - supplier_traps: "Some suppliers look great but fail after reroute if not investigated"
+    - hidden_reliability: "Some supplier reliability scores hidden until investigated"
+    - delayed_failures: "Trap supplier orders fail 2 steps after reroute"
 
 # ── API Endpoints ─────────────────────────────────
 api:
@@ -37,239 +69,294 @@ api:
     state: "GET  /state"
     tasks: "GET  /tasks"
     grade: "GET  /grade"
+    validate: "GET /validate"
 
 # ── Observation Space ─────────────────────────────
 observation_space:
   type: object
-  description: "Current world state seen by the agent"
+  description: "Rich observation with 20+ fields including market dynamics, risk indicators, and supply network state"
   fields:
-    task_id:
-      type: string
-      description: "Which task is running"
-    step:
-      type: integer
-      description: "Current step number"
-    max_steps:
-      type: integer
-      description: "Maximum steps allowed"
-    done:
-      type: boolean
-      description: "Is episode complete"
-    disruptions:
-      type: array
-      description: "List of active supply disruptions"
-      item_fields:
-        id: string
-        type: "delay | closure | capacity | quality | bankruptcy | geopolitical"
-        severity: "low | medium | high | critical"
-        affected_supplier_id: string
-        affected_supplier_name: string
-        estimated_duration_days: integer
-        description: string
-        is_resolved: boolean
-    orders:
-      type: array
-      description: "List of orders at risk"
-      item_fields:
-        id: string
-        product: string
-        quantity: integer
-        value_usd: float
-        deadline_days: integer
-        status: "safe | at_risk | fulfilled | lost | delayed"
-        current_supplier_id: string
-        priority: "low | medium | high"
-    available_suppliers:
-      type: array
-      description: "Alternative suppliers agent can use"
-      item_fields:
-        id: string
-        name: string
-        location: string
-        lead_time_days: integer
-        cost_multiplier: float
-        reliability_score: "float | null"
-        reliability_known: boolean
-        capacity_available: integer
-        is_available: boolean
-    budget:
+    # Core fields
+    task_id: {type: string, description: "Which task is running"}
+    step: {type: integer, description: "Current step number"}
+    max_steps: {type: integer, description: "Maximum steps allowed"}
+    done: {type: boolean, description: "Is episode complete"}
+    disruptions: {type: array, description: "Active supply disruptions (may grow mid-episode)"}
+    orders: {type: array, description: "Orders at risk"}
+    available_suppliers: {type: array, description: "Alternative suppliers (some may be traps)"}
+    budget: {type: object, description: "Total/spent/remaining budget"}
+    metrics: {type: object, description: "Running performance metrics"}
+    message: {type: string, description: "Human readable status"}
+    # V2 fields
+    supply_tiers:
       type: object
-      fields:
-        total: float
-        spent: float
-        remaining: float
-    metrics:
+      description: "Multi-tier supply network state (Tier 1/2/3 with dependencies)"
+    fx_rates:
       type: object
-      fields:
-        orders_saved: integer
-        orders_lost: integer
-        orders_delayed: integer
-        revenue_protected: float
-        revenue_lost: float
-        actions_taken: integer
-        current_score: float
-    message:
-      type: string
-      description: "Human readable status message"
+      description: "Currency exchange rates with change percentages (USD/CNY, USD/EUR, USD/INR, USD/JPY)"
+    fx_hedge_coverage:
+      type: object
+      description: "Current FX hedging coverage per pair"
+    spot_freight_rates:
+      type: object
+      description: "Per-lane freight costs (fluctuate with congestion/disruptions)"
+    fuel_surcharge:
+      type: number
+      description: "Current fuel surcharge multiplier (0.5-2.0x)"
+    insurance_premiums:
+      type: object
+      description: "Dynamic per-lane insurance premiums (rise with claims)"
+    weather_severity:
+      type: object
+      description: "Per-region weather risk index"
+    geopolitical_tension:
+      type: object
+      description: "Per-region geopolitical tension index"
+    bullwhip_state:
+      type: object
+      description: "Demand amplification factor per tier"
+    demand_forecast:
+      type: object
+      description: "Regional demand forecasts (30d/60d/90d)"
+    launch_countdown:
+      type: integer
+      description: "Steps until product launch (-1 if inactive)"
+    dc_inventory:
+      type: object
+      description: "Distribution center inventory levels (6 DCs)"
+    in_transit_shipments:
+      type: array
+      description: "Shipments currently in transit"
+    shipping_lanes:
+      type: array
+      description: "Available shipping lanes with transit times and congestion"
+    carrier_options:
+      type: array
+      description: "Available carriers with lane-specific reliability"
+    legal_constraints:
+      type: array
+      description: "ITAR/EAR export control restrictions (hard action masks)"
+    sla_status:
+      type: object
+      description: "SLA floor compliance per DC"
+    capacity_utilization:
+      type: object
+      description: "Port/facility throughput utilization"
 
 # ── Action Space ──────────────────────────────────
 action_space:
   type: object
-  description: "Actions available to the agent each step"
+  description: "12 action types including advanced logistics operations"
   action_types:
+    # V1 actions
     reroute:
       description: "Reroute an at-risk order to a different supplier"
-      required_fields:
-        - action_type
-        - order_id
-        - new_supplier_id
-      optional_fields:
-        - shipping_method
+      required_fields: [action_type, order_id, new_supplier_id]
+      optional_fields: [shipping_method]
     substitute:
       description: "Replace product with an alternative"
-      required_fields:
-        - action_type
-        - order_id
-        - alternative_product
-      optional_fields:
-        - notify_customer
+      required_fields: [action_type, order_id, alternative_product]
+      optional_fields: [notify_customer]
     delay:
       description: "Push an order deadline back by N days"
-      required_fields:
-        - action_type
-        - order_id
-        - delay_days
-      optional_fields:
-        - reason
+      required_fields: [action_type, order_id, delay_days]
+      optional_fields: [reason]
     cancel:
       description: "Cancel an order entirely (last resort)"
-      required_fields:
-        - action_type
-        - order_id
-      optional_fields:
-        - reason
+      required_fields: [action_type, order_id]
+      optional_fields: [reason]
     escalate:
       description: "Escalate a disruption to management"
-      required_fields:
-        - action_type
-        - disruption_id
-        - escalation_priority
-      optional_fields:
-        - escalation_message
+      required_fields: [action_type, disruption_id, escalation_priority]
+      optional_fields: [escalation_message]
     investigate:
-      description: "Investigate a supplier or disruption for more info"
-      required_fields:
-        - action_type
-        - target_id
-      optional_fields:
-        - investigation_type
+      description: "Investigate a supplier or disruption (reveals hidden reliability)"
+      required_fields: [action_type, target_id]
+      optional_fields: [investigation_type]
+    # V2 actions
+    hedge_fx:
+      description: "Buy FX forward contract to hedge currency exposure"
+      required_fields: [action_type, fx_pair, hedge_coverage]
+    select_carrier:
+      description: "Choose specific carrier for a shipping lane"
+      required_fields: [action_type, lane_id, carrier_id]
+    rebalance_dc:
+      description: "Transfer inventory between distribution centers"
+      required_fields: [action_type, from_dc, to_dc, product, quantity]
+    expedite:
+      description: "Pay premium for faster shipping on a lane"
+      required_fields: [action_type, order_id, lane_id]
+    insure:
+      description: "Buy cargo insurance on a shipment"
+      required_fields: [action_type, order_id, coverage_usd]
+    pre_clear:
+      description: "Pre-file customs documentation for faster clearance"
+      required_fields: [action_type, order_id, destination_country]
 
 # ── Reward ────────────────────────────────────────
 reward:
   range: [-1.0, 1.0]
   cumulative_score_range: [0.0, 1.0]
-  description: "Step-level reward with cumulative normalized score"
-  positive_signals:
-    - "Order rerouted and fulfilled on time: +0.15 to +0.25"
-    - "Good supplier choice (cost + reliability): +0.05"
-    - "Correct escalation of critical disruption: +0.08"
-    - "Useful investigation: +0.05"
-    - "Terminal: all high-value orders saved: +0.20"
-    - "Terminal: finished under budget: +0.10"
-    - "Terminal: finished early: +0.05"
-  negative_signals:
-    - "Order deadline missed: -0.10"
-    - "Order lost completely: -0.15"
-    - "Budget exceeded: -0.10"
-    - "Unreliable supplier chosen: -0.05"
-    - "Redundant/repeated action: -0.05"
-    - "Invalid action: -0.05"
-    - "Terminal: more than 50% orders lost: -0.20"
+  description: "Step-level reward with cumulative normalized score. Multi-objective grading across 4 pillars."
+  scoring_pillars:
+    cost_minimization:
+      weight: 0.30
+      description: "Budget efficiency — freight + handling + duties + FX hedging + insurance"
+    service_level:
+      weight: 0.30
+      description: "On-time delivery, stockout avoidance, SLA compliance"
+    launch_precision:
+      weight: 0.25
+      description: "Zero late shipments during launch window for critical/high orders"
+    carbon_esg:
+      weight: 0.15
+      description: "Sea-over-air preference, emissions per unit"
 
 # ── Tasks ─────────────────────────────────────────
 tasks:
-  - id: task_easy
-    name: "Single Lane Disruption"
+  # V2 tasks (primary)
+  - id: task_foundational
+    name: "Basic Rerouting"
     difficulty: easy
     max_steps: 10
-    pass_threshold: 0.60
+    pass_threshold: 0.50
     description: >
-      A single supplier is delayed. One high-value order is at risk.
-      Two alternative suppliers are available. Choose the best one
-      considering cost, lead time, and reliability.
-    grader:
-      order_fulfilled:   0.50
-      budget_respected:  0.20
-      supplier_choice:   0.20
-      efficiency:        0.10
-    expected_score_range: [0.8, 1.0]
+      Single-tier scenario. A primary supplier is disrupted, 3 orders need
+      rerouting. Focus on matching supplier capacity and lead times to deadlines.
+    expected_score_range: [0.60, 0.95]
 
-  - id: task_medium
-    name: "Multi-Point Failure"
+  - id: task_multi_tier
+    name: "Multi-Tier Crisis"
     difficulty: medium
     max_steps: 20
-    pass_threshold: 0.45
+    pass_threshold: 0.40
     description: >
-      Three simultaneous disruptions put four orders at risk. Budget is
-      limited — not all orders can be saved on time. The agent must triage by
-      value and priority, finding non-conflicting alternatives.
-    grader:
-      high_value_orders_saved: 0.40
-      revenue_protected:       0.30
-      budget_adherence:        0.20
-      prioritization_bonus:    0.10
-    expected_score_range: [0.7, 0.9]
+      Multi-tier supply network: Tier 3 rare earth disruption cascades through
+      Tier 2 components to Tier 1 assembly. Bullwhip effect amplifies demand
+      uncertainty at each level. Agent must investigate root cause across tiers.
+    unique_mechanics:
+      - "3-tier cascade: Tier 3 → Tier 2 → Tier 1"
+      - "Bullwhip demand amplification"
+      - "Hidden supplier reliability"
+    expected_score_range: [0.40, 0.80]
 
-  - id: task_hard
-    name: "Cascade Crisis"
+  - id: task_stochastic
+    name: "Stochastic Dynamic Risk"
     difficulty: hard
+    max_steps: 25
+    pass_threshold: 0.35
+    description: >
+      Dynamic market conditions: FX rates fluctuate, freight costs surge,
+      insurance premiums rise after claims, and stochastic disruptions fire
+      from historical distributions. Product launch in 12 steps. Agent must
+      optimize across cost, service, timing, and market risk.
+    unique_mechanics:
+      - "Dynamic FX rates (4 currency pairs)"
+      - "Stochastic disruption injection (10 event types)"
+      - "Insurance feedback loops"
+      - "Product launch countdown pressure"
+    expected_score_range: [0.35, 0.75]
+
+  - id: task_adversarial_v2
+    name: "Trap & Verify"
+    difficulty: hard
+    max_steps: 20
+    pass_threshold: 0.40
+    description: >
+      3 of 8 suppliers are traps — suspiciously cheap but will fail after
+      reroute. Insurance premiums rise dynamically when agent routes through
+      risky lanes. Only investigation reveals the truth. Agent must verify
+      before trusting.
+    unique_mechanics:
+      - "3 trap suppliers with delayed failure"
+      - "Insurance premium feedback"
+      - "Mandatory investigation-first strategy"
+    expected_score_range: [0.40, 0.80]
+
+  - id: task_full_sim
+    name: "Apple-Scale Full Simulation"
+    difficulty: expert
     max_steps: 30
     pass_threshold: 0.30
     description: >
-      Five simultaneous disruptions including bankruptcy and geopolitical
-      sanctions threaten eight orders. Budget is severely constrained.
-      Some suppliers have hidden reliability issues. Critical disruptions
-      must be escalated. A perfect rescue is intentionally infeasible.
-    grader:
-      high_value_orders_saved:  0.35
-      revenue_protected:        0.25
-      budget_not_exceeded:      0.20
-      escalation_decisions:     0.10
-      speed_of_resolution:      0.10
-    expected_score_range: [0.45, 0.7]
+      EVERYTHING combined: multi-tier suppliers with bullwhip effect, stochastic
+      disruptions from historical distributions, FX hedging decisions, lane-specific
+      carrier reliability, insurance feedback loops, ITAR/EAR hard legal constraints,
+      product launch pressure, and full inventory management across 6 global DCs.
+      Multi-objective scoring: cost (30%), service (30%), launch (25%), ESG (15%).
+    unique_mechanics:
+      - "Multi-tier cascade propagation"
+      - "FX hedging with 4 currency pairs"
+      - "ITAR hard constraints (action rejection)"
+      - "Trap suppliers with delayed failure"
+      - "Regional cascade from overloading"
+      - "Launch countdown pressure"
+      - "ESG/carbon scoring (air vs sea)"
+    expected_score_range: [0.30, 0.70]
+
+  # V1 tasks (legacy, backward compatible)
+  - id: task_easy
+    name: "Single Lane Disruption (Legacy)"
+    difficulty: easy
+    max_steps: 10
+    pass_threshold: 0.60
+    description: "Single supplier delayed, one order at risk, two alternatives."
+    expected_score_range: [0.80, 1.0]
+
+  - id: task_medium
+    name: "Multi-Point Failure (Legacy)"
+    difficulty: medium
+    max_steps: 20
+    pass_threshold: 0.45
+    description: "Three disruptions, four orders, limited budget triage."
+    expected_score_range: [0.70, 0.90]
+
+  - id: task_hard
+    name: "Cascade Crisis (Legacy)"
+    difficulty: hard
+    max_steps: 30
+    pass_threshold: 0.30
+    description: "Five disruptions, eight orders, hidden reliability, escalation required."
+    expected_score_range: [0.45, 0.70]
+
+  - id: task_expert
+    name: "Cascading Domino Effect (Legacy)"
+    difficulty: expert
+    max_steps: 25
+    pass_threshold: 0.40
+    description: "10 orders, 3 regions, cascade mechanics from overloading."
+    expected_score_range: [0.35, 0.65]
+
+  - id: task_adversarial
+    name: "Supplier Trap Detection (Legacy)"
+    difficulty: adversarial
+    max_steps: 20
+    pass_threshold: 0.40
+    description: "6 orders, 3 trap suppliers, investigation-first strategy."
+    expected_score_range: [0.40, 0.70]
 
 # ── Baseline ──────────────────────────────────────
 baseline:
   script: "inference.py"
-  model: "Default: HF router (router.huggingface.co/v1) + Qwen/Qwen2.5-72B-Instruct. Also validated with Bytez + openai/gpt-4o and Groq + llama-3.3-70b-versatile"
-  non_llm_validation_script: "baseline_benchmarks.py"
-  optional_validation_script: "robustness_checks.py"
-  heuristic_policy:
-    description: "Deterministic domain heuristic reused by fallback recovery"
-    expected_scores:
-      task_easy: 1.0
-      task_medium: 0.83
-      task_hard: 0.61
-  random_policy:
-    seeds: [7, 21, 42, 84, 1337]
-    mean_scores:
-      task_easy: 0.67
-      task_medium: 0.38
-      task_hard: 0.18
+  model: "Default: HF router (router.huggingface.co/v1) + Qwen/Qwen2.5-72B-Instruct"
+  features:
+    - "Chain-of-thought system prompt with task-specific strategy hints"
+    - "Retry-with-feedback when model action is rejected"
+    - "Pre-computed viability matrix showing viable suppliers per order"
+    - "Universal API compatibility (OpenAI, HF, Anthropic, Ollama, vLLM, etc.)"
+    - "Thinking model support (<think> tags, reasoning_content)"
+    - "V2-aware: FX, insurance, bullwhip, ITAR context in prompts"
   expected_scores:
-    task_easy:   1.0
-    task_medium: 0.83
-    task_hard:   0.61
-  qwen_model_baseline:
-    model: "Qwen/Qwen2.5-72B-Instruct"
-    provider: "router.huggingface.co/v1"
-    runtime_seconds: 48.21
-    scores:
-      task_easy:   1.000
-      task_medium: 0.830
-      task_hard:   0.615
-    overall_average: 0.815
-    all_passed: true
+    task_foundational:    0.30
+    task_multi_tier:      0.25
+    task_stochastic:      0.50
+    task_adversarial_v2:  0.35
+    task_full_sim:        0.38
+    task_easy:            1.0
+    task_medium:          0.83
+    task_hard:            0.61
+    task_expert:          0.45
+    task_adversarial:     0.35
 
 # ── Infrastructure ────────────────────────────────
 infrastructure:
@@ -277,14 +364,5 @@ infrastructure:
   port: 7860
   memory_gb: 8
   cpu_cores: 2
-  runtime_limit_minutes: 20
+  runtime_limit_minutes: 25
   huggingface_space: true
-
-future_work:
-  rl_foundation:
-    wrapper: "backend/app/rl/gym_wrapper.py"
-    smoke_script: "rl_smoke.py"
-    requirements: "requirements-rl.txt"
-    notes:
-      - "Provides a Gymnasium-compatible wrapper around the in-process engine"
-      - "Supports future check_env and PPO experiments without changing the OpenEnv HTTP API"

@@ -10,12 +10,30 @@ from enum import Enum
 # ─────────────────────────────────────────
 
 class DisruptionType(str, Enum):
-    DELAY         = "delay"
-    CLOSURE       = "closure"
-    CAPACITY      = "capacity"
-    QUALITY       = "quality"
-    BANKRUPTCY    = "bankruptcy"
-    GEOPOLITICAL  = "geopolitical"
+    DELAY            = "delay"
+    CLOSURE          = "closure"
+    CAPACITY         = "capacity"
+    QUALITY          = "quality"
+    BANKRUPTCY       = "bankruptcy"
+    GEOPOLITICAL     = "geopolitical"
+    FACTORY_FIRE     = "factory_fire"
+    PORT_CLOSURE     = "port_closure"
+    REGULATORY       = "regulatory"
+    CYBER_ATTACK     = "cyber_attack"
+    SUPPLY_SURGE     = "supply_surge"
+    QUALITY_RECALL   = "quality_recall"
+    EMBARGO          = "embargo"
+    SUPPLIER_FAILURE = "supplier_failure"
+    # V2: Risk engine event types
+    PORT_STRIKE      = "port_strike"
+    TYPHOON          = "typhoon"
+    TARIFF_SHOCK     = "tariff_shock"
+    SUEZ_BLOCKAGE    = "suez_blockage"
+    CHIP_SHORTAGE    = "chip_shortage"
+    PANDEMIC_WAVE    = "pandemic_wave"
+    EARTHQUAKE       = "earthquake"
+    SANCTIONS        = "sanctions"
+    LABOR_SHORTAGE   = "labor_shortage"
 
 
 class DisruptionSeverity(str, Enum):
@@ -27,6 +45,7 @@ class DisruptionSeverity(str, Enum):
 
 class OrderStatus(str, Enum):
     SAFE      = "safe"
+    ACTIVE    = "active"
     AT_RISK   = "at_risk"
     FULFILLED = "fulfilled"
     LOST      = "lost"
@@ -67,7 +86,9 @@ class Order(BaseModel):
     deadline_days: int = Field(..., description="Days remaining until deadline")
     status: OrderStatus = Field(default=OrderStatus.AT_RISK)
     current_supplier_id: str = Field(..., description="Currently assigned supplier")
-    priority: str = Field(..., description="low / medium / high")
+    original_supplier_id: Optional[str] = Field(default=None, description="Original supplier before disruption")
+    priority: str = Field(..., description="low / medium / high / critical")
+    region: Optional[str] = Field(default=None, description="Geographic region: asia, europe, americas")
 
 
 class Supplier(BaseModel):
@@ -75,7 +96,7 @@ class Supplier(BaseModel):
 
     id: str = Field(..., description="Unique supplier ID e.g. S001")
     name: str = Field(..., description="Supplier company name")
-    location: str = Field(..., description="Country or region")
+    location: str = Field(default="", description="Country or region")
     lead_time_days: int = Field(..., description="Days to deliver from this supplier")
     cost_multiplier: float = Field(..., description="1.0 = same cost, 1.5 = 50% more expensive")
     reliability_score: Optional[float] = Field(
@@ -88,6 +109,7 @@ class Supplier(BaseModel):
     )
     capacity_available: int = Field(..., description="Max units they can supply right now")
     is_available: bool = Field(default=True, description="Is this supplier currently available")
+    region: Optional[str] = Field(default=None, description="Geographic region for cascade tracking")
 
 
 class Budget(BaseModel):
@@ -96,6 +118,7 @@ class Budget(BaseModel):
     total: float = Field(..., description="Total budget for this episode")
     spent: float = Field(default=0.0, description="Amount spent so far")
     remaining: float = Field(..., description="Budget left to spend")
+    currency: str = Field(default="USD", description="Currency code")
 
 
 class Metrics(BaseModel):
@@ -118,6 +141,9 @@ class Observation(BaseModel):
     """
     What the AI agent sees at every step.
     This is returned by reset() and step().
+
+    The v2 fields (supply_tiers, fx_rates, etc.) are Optional —
+    simpler tasks leave them as None for backward compatibility.
     """
 
     # Episode info
@@ -154,5 +180,120 @@ class Observation(BaseModel):
         description="Human readable message about what just happened"
     )
 
+    # ═══════════════════════════════════════
+    # V2: Multi-Tier Supply Network
+    # ═══════════════════════════════════════
+
+    supply_tiers: Optional[dict] = Field(
+        default=None,
+        description="Multi-tier supplier network: tier1 (assembly), tier2 (components), tier3 (raw materials)"
+    )
+
+    shipping_lanes: Optional[list] = Field(
+        default=None,
+        description="Available shipping lanes with transit time, cost, congestion, ITAR restrictions"
+    )
+
+    carrier_options: Optional[list] = Field(
+        default=None,
+        description="Carrier profiles with lane-specific reliability and cost"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Market Dynamics
+    # ═══════════════════════════════════════
+
+    fx_rates: Optional[dict] = Field(
+        default=None,
+        description="FX rates: USD/CNY, USD/EUR, USD/INR, USD/JPY with change % and hedge coverage"
+    )
+
+    fx_hedge_coverage: Optional[float] = Field(
+        default=None,
+        description="Overall FX hedge coverage fraction (0.0-1.0)"
+    )
+
+    spot_freight_rates: Optional[dict] = Field(
+        default=None,
+        description="Current spot freight rates per shipping lane"
+    )
+
+    fuel_surcharge: Optional[float] = Field(
+        default=None,
+        description="Current fuel surcharge multiplier (1.0 = normal)"
+    )
+
+    insurance_premiums: Optional[dict] = Field(
+        default=None,
+        description="Per-lane insurance premium rates (dynamic — rise with claims)"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Risk Context
+    # ═══════════════════════════════════════
+
+    weather_severity: Optional[dict] = Field(
+        default=None,
+        description="Per-region weather risk index (0.0-1.0)"
+    )
+
+    geopolitical_tension: Optional[dict] = Field(
+        default=None,
+        description="Per-region geopolitical risk score (0.0-1.0)"
+    )
+
+    bullwhip_state: Optional[dict] = Field(
+        default=None,
+        description="Demand amplification per tier (bullwhip effect). E.g. tier1: +2.3%, tier3: +18.4%"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Demand Signals
+    # ═══════════════════════════════════════
+
+    demand_forecast: Optional[dict] = Field(
+        default=None,
+        description="30/60/90 day demand forecast by region with uncertainty"
+    )
+
+    launch_countdown: Optional[int] = Field(
+        default=None,
+        description="Days until next product launch (-1 = no upcoming launch)"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Inventory
+    # ═══════════════════════════════════════
+
+    dc_inventory: Optional[dict] = Field(
+        default=None,
+        description="Stock levels at 6 global distribution centers per SKU"
+    )
+
+    in_transit_shipments: Optional[list] = Field(
+        default=None,
+        description="Shipments currently in transit with ETA and carrier info"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Hard Constraints
+    # ═══════════════════════════════════════
+
+    legal_constraints: Optional[list] = Field(
+        default=None,
+        description="ITAR/EAR export control restrictions — routes that are FORBIDDEN"
+    )
+
+    sla_status: Optional[dict] = Field(
+        default=None,
+        description="SLA fill rates at each DC vs. minimum floors"
+    )
+
+    capacity_utilization: Optional[dict] = Field(
+        default=None,
+        description="Current vs. max throughput at ports/warehouses"
+    )
+
     class Config:
         use_enum_values = True
+

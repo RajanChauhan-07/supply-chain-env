@@ -40,9 +40,22 @@ STRICT_BASELINE = os.environ.get("STRICT_BASELINE", "").strip().lower() in {
     "1", "true", "yes", "on"
 }
 
-TASK_IDS      = ["task_easy", "task_medium", "task_hard"]
-MAX_STEPS     = {"task_easy": 10, "task_medium": 20, "task_hard": 30}
-MAX_CONTEXT_EVENTS = 6
+TASK_IDS      = [
+    # v2 tasks (primary for evaluation)
+    "task_foundational", "task_multi_tier", "task_stochastic",
+    "task_adversarial_v2", "task_full_sim",
+    # v1 tasks (legacy, still functional)
+    "task_easy", "task_medium", "task_hard", "task_expert", "task_adversarial",
+]
+MAX_STEPS     = {
+    # v2
+    "task_foundational": 10, "task_multi_tier": 20, "task_stochastic": 25,
+    "task_adversarial_v2": 20, "task_full_sim": 30,
+    # v1
+    "task_easy": 10, "task_medium": 20, "task_hard": 30,
+    "task_expert": 25, "task_adversarial": 20,
+}
+
 
 
 # ─────────────────────────────────────────
@@ -58,8 +71,8 @@ def get_llm_client() -> OpenAI:
     return OpenAI(
         api_key=HF_TOKEN,
         base_url=API_BASE_URL,
-        timeout=30.0,
-        max_retries=1,
+        timeout=120.0,
+        max_retries=2,
     )
 
 
@@ -104,30 +117,64 @@ def log_end(success: bool, steps: int, score: float, rewards: list[float]) -> No
     )
 
 
+# Models that require max_completion_tokens instead of max_tokens
+_COMPLETION_TOKEN_PATTERNS = {"o1", "o3", "o4", "gpt-5"}
+# Models that do not support the temperature parameter
+_NO_TEMPERATURE_PATTERNS = {"o1", "o3", "o4"}
+
+
+def _model_matches(patterns: set[str]) -> bool:
+    """Check if MODEL_NAME contains any of the given pattern strings."""
+    name = (MODEL_NAME or "").lower()
+    return any(p in name for p in patterns)
+
+
 def build_completion_kwargs(messages: list[dict], max_tokens: int) -> dict:
-    """Build provider-compatible completion kwargs."""
+    """Build provider-compatible completion kwargs.
+
+    Automatically adapts parameters for different providers:
+      OpenAI (GPT-4, o1/o3/o4, GPT-5) · Meta Llama · Qwen · Mistral ·
+      Sarvam · DeepSeek · Nvidia Nemotron · Anthropic · Google Gemini ·
+      Ollama · vLLM · LM Studio · Groq · Together AI · Fireworks · etc.
+    """
     kwargs = {
         "model": MODEL_NAME,
         "messages": messages,
-        "temperature": 0.2,
     }
-    if "gpt-5" in MODEL_NAME:
+
+    if not _model_matches(_NO_TEMPERATURE_PATTERNS):
+        kwargs["temperature"] = 0.2
+
+    if _model_matches(_COMPLETION_TOKEN_PATTERNS):
         kwargs["max_completion_tokens"] = max_tokens
     else:
         kwargs["max_tokens"] = max_tokens
+
     return kwargs
 
 
 def extract_json_candidates(raw_text: str) -> list[str]:
     """
     Extract likely JSON snippets from a model response.
-    Handles full-response JSON, fenced blocks, and embedded JSON objects.
+    Handles full-response JSON, fenced blocks, embedded JSON objects,
+    and reasoning/thinking model output (<think> tags, reasoning_content).
     """
     if not raw_text:
         return []
 
     candidates = []
     text = raw_text.strip()
+
+    # Strip <think>…</think> blocks used by reasoning models (DeepSeek-R1,
+    # Sarvam-m, QwQ, etc.) before looking for JSON.
+    cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    # Handle unclosed <think> tag (model still reasoning when tokens ran out)
+    if "<think>" in cleaned:
+        cleaned = cleaned.split("<think>")[0].strip()
+    # Use cleaned text if it produced something; otherwise keep original
+    if cleaned:
+        text = cleaned
+
     candidates.append(text)
 
     fenced_blocks = re.findall(r"```(?:json)?\s*(.*?)```", text, flags=re.DOTALL | re.IGNORECASE)
@@ -317,24 +364,116 @@ def infer_action_from_prose(raw_text: str) -> Optional[dict]:
     return None
 
 
+def _extract_content_from_response(response) -> str:
+    """
+    Robustly extract usable text from any OpenAI-compatible API response.
+
+    Handles every common model type:
+    - Standard models:  content field (GPT-4, Llama, Mistral, Qwen, Nemotron)
+    - Thinking models:  reasoning_content field (Sarvam, DeepSeek-R1, QwQ)
+    - Inline thinking:  <think>…</think> tags in content (Ollama / vLLM served
+                        reasoning models)
+    - Tool-call style:  function.arguments in tool_calls
+    """
+    choice = response.choices[0]
+    message = choice.message
+
+    # 1. Primary: standard content field
+    content = getattr(message, "content", None) or ""
+
+    # 2. Strip <think>…</think> blocks if present inside content
+    if content:
+        stripped = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+        if "<think>" in stripped:
+            stripped = stripped.split("<think>")[0].strip()
+        if stripped:
+            content = stripped
+
+    # 3. If content is still empty, try reasoning_content (thinking models
+    #    like Sarvam and DeepSeek put the actual answer in content, but when
+    #    the token budget is exhausted mid-reasoning, content stays null).
+    if not content.strip():
+        reasoning = getattr(message, "reasoning_content", None) or ""
+        if reasoning:
+            # Look for a JSON action object inside the reasoning text
+            json_match = re.search(
+                r'\{[^{}]*"action_type"\s*:\s*"[^"]+?"[^{}]*\}', reasoning
+            )
+            if json_match:
+                content = json_match.group(0)
+
+    # 4. Some providers return tool_calls instead of plain text
+    if not content.strip():
+        tool_calls = getattr(message, "tool_calls", None)
+        if tool_calls:
+            for tc in tool_calls:
+                fn = getattr(tc, "function", None)
+                if fn and getattr(fn, "arguments", None):
+                    content = fn.arguments
+                    break
+
+    return content.strip()
+
+
 def create_chat_completion(client: OpenAI, messages: list[dict], max_tokens: int = 300) -> str:
-    """Send one chat completion request and return text content."""
+    """Send one chat completion request and return text content.
+
+    Works with ANY OpenAI-compatible API:
+      OpenAI · Anthropic · Sarvam · DeepSeek · HuggingFace · Meta Llama ·
+      Ollama · vLLM · LM Studio · Nvidia Nemotron · Google Gemini · Groq ·
+      Together AI · Fireworks · Mistral · Qwen · and more.
+
+    Automatically retries with alternative parameter names when a provider
+    rejects unsupported parameters (max_tokens ↔ max_completion_tokens,
+    temperature, etc.).
+    """
     kwargs = build_completion_kwargs(messages, max_tokens=max_tokens)
-    try:
-        response = client.chat.completions.create(**kwargs)
-    except Exception as exc:
-        message = str(exc)
-        if (
-            "max_tokens" in kwargs
-            and "max_completion_tokens" in message
-            and "Unsupported parameter" in message
-        ):
-            kwargs.pop("max_tokens", None)
-            kwargs["max_completion_tokens"] = max_tokens
-            response = client.chat.completions.create(**kwargs)
-        else:
+
+    response = None
+    last_exc = None
+
+    # Build kwarg variants to try: each swaps/removes a parameter that
+    # some providers reject.
+    variants = [dict(kwargs)]  # attempt 0: original
+
+    # attempt 1: swap max_tokens ↔ max_completion_tokens
+    alt1 = dict(kwargs)
+    if "max_tokens" in alt1:
+        alt1["max_completion_tokens"] = alt1.pop("max_tokens")
+    elif "max_completion_tokens" in alt1:
+        alt1["max_tokens"] = alt1.pop("max_completion_tokens")
+    variants.append(alt1)
+
+    # attempt 2: drop token limit + temperature entirely (last resort)
+    alt2 = {k: v for k, v in kwargs.items()
+            if k not in ("max_tokens", "max_completion_tokens", "temperature")}
+    variants.append(alt2)
+
+    for attempt_kwargs in variants:
+        try:
+            response = client.chat.completions.create(**attempt_kwargs)
+            break
+        except Exception as exc:
+            last_exc = exc
+            err_msg = str(exc).lower()
+            # Only retry on parameter-related errors
+            if any(kw in err_msg for kw in [
+                "unsupported parameter",
+                "not supported",
+                "invalid parameter",
+                "unknown parameter",
+                "unexpected keyword",
+                "max_completion_tokens",
+                "max_tokens",
+                "temperature",
+            ]):
+                continue
             raise
-    return (response.choices[0].message.content or "").strip()
+
+    if response is None:
+        raise last_exc  # type: ignore[misc]
+
+    return _extract_content_from_response(response)
 
 
 def request_model_action(
@@ -576,7 +715,7 @@ def choose_fallback_action(observation: dict, escalated_ids: set[str]) -> dict:
         }
 
     budget_remaining = observation.get("budget", {}).get("remaining", 0.0)
-    priority_rank = {"high": 0, "medium": 1, "low": 2}
+    priority_rank = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     at_risk_orders = sorted(
         [
             o for o in observation.get("orders", [])
@@ -703,9 +842,20 @@ def env_grade() -> dict:
 # PROMPT BUILDER
 # ─────────────────────────────────────────
 
-def build_system_prompt() -> str:
-    return """You are an expert supply chain operations manager.
-Your job is to manage supply chain disruptions by taking actions to protect orders and minimize revenue loss.
+def build_system_prompt(task_id: str = "") -> str:
+    base = """You are an expert supply chain operations manager AI.
+Your job is to manage supply chain disruptions by taking the BEST action each turn.
+
+THINKING PROCESS (follow this EVERY turn before choosing an action):
+1. Scan disruptions: which are critical/high severity? Have they been escalated?
+2. Scan orders: which are at_risk? Sort by priority (critical > high > medium > low) then value.
+3. For each at-risk order, check which suppliers can handle it:
+   - capacity_available >= order quantity?
+   - lead_time_days <= order deadline_days? (for on-time delivery)
+   - extra_cost = value_usd * (cost_multiplier - 1.0) <= budget remaining?
+   - reliability_known = true AND reliability_score >= 0.75?
+4. If a supplier has reliability_known = false → INVESTIGATE FIRST, never reroute blind.
+5. Choose the action that saves the most value with the least risk.
 
 AVAILABLE ACTIONS:
 1. reroute     — Move an order to a different supplier
@@ -732,32 +882,134 @@ AVAILABLE ACTIONS:
    Required: action_type, target_id
    Optional: investigation_type (reliability/capacity/cost)
 
-CRITICAL RULES — FOLLOW THESE EXACTLY:
-- You must take exactly ONE action per turn. Return a single JSON object.
-- Use ONLY IDs that appear in the current observation. Copy IDs exactly (e.g. "S004", "O001", "D002").
-- For reroute: new_supplier_id MUST be an ID from the available_suppliers list.
-- For reroute: the supplier's capacity_available MUST be >= the order's quantity. If not, pick a different supplier.
-- For reroute: the supplier's lead_time_days MUST be <= the order's deadline_days for on-time delivery. Prefer on-time suppliers.
-- For reroute: calculate extra_cost = order.value_usd * (supplier.cost_multiplier - 1.0). This must not exceed budget.remaining.
-- For escalate: disruption_id MUST be an ID from the disruptions list.
-- For investigate: target_id MUST be a supplier ID or disruption ID from the observation.
-- NEVER reroute to a supplier whose reliability_known is false — investigate them first.
-- NEVER repeat an action you already took (check previous steps).
-
-STRATEGY GUIDELINES:
-- First: escalate all CRITICAL severity disruptions immediately
-- Second: investigate any supplier with reliability_known = false before using them
-- Third: reroute at-risk HIGH priority orders to the cheapest on-time reliable supplier
-- Fourth: reroute MEDIUM and LOW priority orders
-- Avoid suppliers with reliability_score below 0.75
-- Cancel only as absolute last resort, and only LOW priority orders
-- Extra cost from cost_multiplier reduces budget.remaining — stay within budget
+CONSTRAINT RULES (VIOLATIONS CAUSE NEGATIVE REWARDS):
+- Take exactly ONE action per turn. Return a single JSON object.
+- Use ONLY IDs from the current observation. Copy IDs exactly.
+- reroute: supplier capacity_available MUST >= order quantity.
+- reroute: extra_cost = order.value_usd * (cost_multiplier - 1.0) MUST <= budget.remaining.
+- reroute: prefer suppliers with lead_time_days <= deadline_days (on-time).
+- escalate: disruption_id MUST exist in the disruptions list.
+- investigate: target_id MUST be a supplier_id or disruption_id from observation.
+- NEVER reroute to unknown-reliability suppliers. Investigate first.
+- NEVER repeat the exact same action twice.
 
 RESPONSE FORMAT:
-You must respond with ONLY a valid JSON object. No explanation. No markdown. No extra text.
-Example:
-{"action_type": "reroute", "order_id": "O001", "new_supplier_id": "S004"}
-"""
+Respond with ONLY a valid JSON object. No explanation, no markdown, no extra text.
+Example: {"action_type": "reroute", "order_id": "O001", "new_supplier_id": "S004"}"""
+
+    # Task-specific strategy additions
+    task_hints = {
+        "task_expert": """
+
+EXPERT TASK — CASCADING DOMINO EFFECT:
+⚠️ This environment has CASCADE MECHANICS. If you reroute too many orders (3+) to suppliers
+in the SAME geographic region, a SECONDARY DISRUPTION triggers in that region:
+- All suppliers in the region get +30% cost increase and +2 days lead time.
+- To AVOID cascades: SPREAD your reroutes across different regions (asia, europe, americas).
+- Use the global supplier (expensive but region-neutral) for overflow.
+- Strategy: reroute 2 to asia, 2 to europe, 2 to americas — never 3+ to one region.""",
+        "task_adversarial": """
+
+ADVERSARIAL TASK — SUPPLIER TRAP DETECTION:
+⚠️ This environment has TRAP SUPPLIERS. Some suppliers look amazing (low cost, high capacity)
+but have hidden terrible reliability. If you reroute to them WITHOUT investigating first:
+- The order APPEARS fulfilled initially.
+- But 2 steps later, it FAILS and reverts to at_risk.
+- You lose budget AND must fix the order again at emergency premium.
+- ALWAYS investigate suppliers with suspiciously low cost_multiplier (< 1.0) before using them.
+- Strategy: investigate ALL unknown-reliability suppliers FIRST, then reroute only to safe ones.""",
+
+        # ═══════════════════════════════════════
+        # V2 TASK HINTS
+        # ═══════════════════════════════════════
+
+        "task_foundational": """
+
+FOUNDATIONAL TASK — BASIC REROUTING:
+Simple single-tier scenario. A primary supplier is disrupted, 3 orders need rerouting.
+- Focus on matching supplier capacity and lead times to deadlines.
+- Budget is limited — don't overspend on premium suppliers.
+- Reroute high-priority, high-value orders FIRST.""",
+
+        "task_multi_tier": """
+
+MULTI-TIER CRISIS — CASCADING DISRUPTIONS:
+This environment models a 3-tier supply chain: Tier 3 (raw materials) → Tier 2 (components) → Tier 1 (assembly).
+⚠️ KEY OBSERVATIONS:
+- supply_tiers: Shows all 3 tiers with supplier status, capacity, and dependencies.
+- bullwhip_state: Shows demand amplification per tier. A 5% retail shift → 15% at Tier 2 → 40% at Tier 3.
+- depends_on: Each Tier 1 supplier DEPENDS on specific Tier 2 suppliers.
+- Disruptions CASCADE DOWN: a Tier 3 disruption affects Tier 2, which affects Tier 1.
+⚠️ STRATEGY:
+- Investigate unknown-reliability suppliers before rerouting.
+- Prioritize fixing ROOT CAUSE (highest affected tier) over symptoms.
+- Diversify across tiers to break cascade chains.""",
+
+        "task_stochastic": """
+
+STOCHASTIC DYNAMIC RISK — FX, FREIGHT, INSURANCE:
+This environment has DYNAMIC MARKET CONDITIONS that change EVERY step.
+⚠️ NEW OBSERVATIONS:
+- fx_rates: Currency exchange rates with change %. USD/CNY shifts change optimal routing.
+- spot_freight_rates: Per-lane freight costs that fluctuate with congestion and disruptions.
+- insurance_premiums: Dynamic premiums that RISE when you route through risky lanes.
+- weather_severity: Per-region weather risk index.
+- launch_countdown: Days until product launch. CRITICAL orders MUST be fulfilled before launch.
+⚠️ NEW ACTIONS:
+- hedge_fx: Buy FX forward contract. Use: {"action_type": "hedge_fx", "fx_pair": "USD_CNY", "hedge_coverage": 0.80}
+- expedite: Pay premium for faster shipping. Use: {"action_type": "expedite", "order_id": "O001", "lane_id": "SH_LAX_AIR"}
+⚠️ STRATEGY:
+- Watch fx_rates change_pct — if USD weakens >2%, hedge before routing.
+- Monitor insurance premiums — they rise with claims. Avoid repeatedly using risky lanes.
+- Prioritize launch-critical orders. Late launch shipments are severely penalized.""",
+
+        "task_adversarial_v2": """
+
+ADVERSARIAL V2 — TRAP SUPPLIERS + INSURANCE EXPLOIT:
+3 of 8 suppliers are TRAPS. They look suspiciously cheap but FAIL 2 steps after reroute.
+⚠️ KEY MECHANICS:
+- Trap suppliers have cost_multiplier < 1.0 and reliability_known = false.
+- An uninvestigated trap appears to succeed, then FAILS 2 steps later.
+- Insurance premiums RISE when trap failures cause claims.
+- Budget already spent on trap reroutes is NOT refunded.
+⚠️ STRATEGY (MANDATORY ORDER):
+1. Investigate ALL suppliers with reliability_known=false or cost_multiplier < 1.0.
+2. Only reroute to suppliers with known reliability >= 0.75.
+3. NEVER reroute to a supplier you haven't investigated.
+4. After investigations, reroute to verified safe suppliers.
+5. If budget is tight, cancel low-priority orders rather than risk traps.""",
+
+        "task_full_sim": """
+
+FULL APPLE-SCALE SIMULATION — EVERYTHING COMBINED:
+Multi-tier suppliers + FX hedging + stochastic disruptions + ITAR constraints + insurance feedback + bullwhip + traps.
+⚠️ THIS IS THE ULTIMATE TEST. ALL MECHANICS ARE ACTIVE:
+- supply_tiers: 3-tier network with cascade propagation.
+- fx_rates: Dynamic FX with hedging. Use hedge_fx action to manage exposure.
+- insurance_premiums: Dynamic premiums. Rise with claims. Route wisely.
+- legal_constraints: ITAR/EAR HARD CONSTRAINTS. Certain routes are FORBIDDEN. Check legal_constraints.
+- bullwhip_state: Demand amplification across tiers.
+- launch_countdown: Product launch pressure. Critical orders MUST arrive on time.
+- sla_status: SLA floors at DCs. Cannot drain a DC below its minimum.
+- capacity_utilization: Port throughput limits.
+⚠️ MULTI-OBJECTIVE SCORING (how you're graded):
+- Cost (30%): Budget efficiency — don't overspend.
+- Service (30%): On-time delivery rate — fulfill orders.
+- Launch (25%): Critical/high orders fulfilled before launch.
+- ESG (15%): Sea-over-air preference — use sea freight when possible.
+⚠️ STRATEGY:
+1. FIRST: Investigate all unknown-reliability suppliers.
+2. Hedge FX if USD/CNY moves >2%.
+3. Reroute critical/high orders FIRST to verified suppliers.
+4. SPREAD reroutes across regions (max 3 per region to avoid cascade).
+5. Prefer sea/rail over air for ESG score (unless deadline forces air).
+6. NEVER violate ITAR — check legal_constraints before routing.
+7. Monitor insurance premiums — avoid lanes with high claim rates.""",
+    }
+
+    hint = task_hints.get(task_id, "")
+    return base + hint
+
 
 
 def build_user_prompt(
@@ -879,6 +1131,62 @@ def build_user_prompt(
         f"delayed={resolved_counts['delayed']}, lost={resolved_counts['lost']}"
     )
 
+    # ═══════════════════════════════════════
+    # V2: Market & Risk Context
+    # ═══════════════════════════════════════
+    v2_context = ""
+
+    # FX rates
+    fx_rates = observation.get("fx_rates")
+    if fx_rates:
+        v2_context += "\n\n📊 FX RATES:"
+        for pair, data in fx_rates.items():
+            if isinstance(data, dict):
+                change = data.get("change_pct", 0)
+                alert = " ⚠️ HEDGE!" if abs(change) > 2 else ""
+                v2_context += f"\n  {pair}: {data.get('rate', '?')} ({change:+.2f}%){alert}"
+
+    # Insurance premiums
+    insurance = observation.get("insurance_premiums")
+    if insurance:
+        high_premium_lanes = [
+            f"{lane}: {data.get('rate_pct', '?')}% ({data.get('claims', 0)} claims)"
+            for lane, data in insurance.items()
+            if isinstance(data, dict) and data.get("rate_pct", 0) > 3.0
+        ]
+        if high_premium_lanes:
+            v2_context += "\n\n⚠️ HIGH INSURANCE LANES:\n  " + "\n  ".join(high_premium_lanes)
+
+    # Bullwhip state
+    bullwhip = observation.get("bullwhip_state")
+    if bullwhip:
+        v2_context += f"\n\n🌊 BULLWHIP STATE: {bullwhip}"
+
+    # Launch countdown
+    launch = observation.get("launch_countdown")
+    if launch is not None and launch >= 0:
+        urgency = "🔴 CRITICAL!" if launch <= 5 else "🟡 APPROACHING" if launch <= 10 else "🟢 OK"
+        v2_context += f"\n\n🚀 LAUNCH COUNTDOWN: {launch} steps {urgency}"
+
+    # Legal constraints
+    constraints = observation.get("legal_constraints")
+    if constraints:
+        v2_context += "\n\n🚫 ITAR/EAR RESTRICTIONS (FORBIDDEN ROUTES):"
+        for c in constraints[:3]:  # Show top 3
+            if isinstance(c, dict):
+                v2_context += f"\n  {c.get('id', '?')}: {c.get('description', '')[:80]}"
+
+    # SLA status
+    sla = observation.get("sla_status")
+    if sla:
+        below_floor = [
+            f"{dc}: {data.get('fill_rate', '?')} (floor: {data.get('floor', '?')})"
+            for dc, data in sla.items()
+            if isinstance(data, dict) and not data.get("healthy", True)
+        ]
+        if below_floor:
+            v2_context += "\n\n⛔ SLA FLOOR BREACHES:\n  " + "\n  ".join(below_floor)
+
     return f"""STEP {step} — CURRENT SITUATION
 
 ACTIVE DISRUPTIONS:{disruptions_text}
@@ -892,6 +1200,7 @@ BUDGET: {budget_text}
 METRICS: {metrics_text}
 SUMMARY: {resolved_text}
 STATUS: {observation.get('message', '')}
+{v2_context}
 
 Choose ONE action. Respond with valid JSON only.
 IMPORTANT: Check capacity_available before rerouting.
@@ -912,14 +1221,14 @@ def run_agent_on_task(
     # Reset environment
     reset_result = env_reset(task_id)
     observation  = reset_result["observation"]
-    max_steps    = MAX_STEPS[task_id]
+    max_steps    = MAX_STEPS.get(task_id, 30)
 
     total_reward  = 0.0
     step          = 0
     done          = False
     rewards_seen: list[float] = []
 
-    system_prompt = build_system_prompt()
+    system_prompt = build_system_prompt(task_id)
 
     # Track compact episode memory instead of full transcript
     recent_events = []
@@ -984,13 +1293,44 @@ def run_agent_on_task(
                     action_dict=action_dict,
                 )
                 if not is_locally_valid:
-                    model_action_rejections += 1
-                    if STRICT_BASELINE:
-                        break
-                    fallback_used = True
-                    fallback_actions_used += 1
-                    action_source = "fallback"
-                    action_dict = choose_fallback_action(observation, escalated_ids)
+                    # Retry: feed rejection reason back to model for one more attempt
+                    retry_action = None
+                    if client is not None:
+                        try:
+                            retry_prompt = (
+                                f"Your action was REJECTED: {rejection_reason}\n"
+                                f"Action attempted: {json.dumps(action_dict)}\n"
+                                f"Choose a DIFFERENT valid action. Check all constraints carefully.\n"
+                                f"Respond with ONLY a valid JSON object."
+                            )
+                            retry_conv = [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_message},
+                                {"role": "assistant", "content": raw_action},
+                                {"role": "user", "content": retry_prompt},
+                            ]
+                            retry_raw = create_chat_completion(client, retry_conv, max_tokens=200)
+                            retry_action = parse_action_response(retry_raw) or infer_action_from_prose(retry_raw)
+                            if retry_action:
+                                is_valid2, _ = validate_action_against_observation(observation, retry_action)
+                                if is_valid2:
+                                    action_dict = retry_action
+                                    model_actions_used += 1
+                                    if verbose:
+                                        print(f"  LLM RETRY → {json.dumps(retry_action)[:100]}")
+                                else:
+                                    retry_action = None
+                        except Exception:
+                            retry_action = None
+
+                    if retry_action is None:
+                        model_action_rejections += 1
+                        if STRICT_BASELINE:
+                            break
+                        fallback_used = True
+                        fallback_actions_used += 1
+                        action_source = "fallback"
+                        action_dict = choose_fallback_action(observation, escalated_ids)
                 else:
                     model_actions_used += 1
 
@@ -1103,7 +1443,7 @@ def main():
     else:
         print("client_setup_fallback: no_api_token_found", file=sys.stderr, flush=True)
 
-    # ── Run all 3 tasks ────────────────────────
+    # ── Run all 5 tasks ────────────────────────
     results     = []
     start_time  = time.time()
 

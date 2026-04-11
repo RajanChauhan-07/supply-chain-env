@@ -10,12 +10,19 @@ from enum import Enum
 # ─────────────────────────────────────────
 
 class ActionType(str, Enum):
-    REROUTE     = "reroute"      # Send order to different supplier
-    SUBSTITUTE  = "substitute"   # Replace product with alternative
-    DELAY       = "delay"        # Push deadline back
-    CANCEL      = "cancel"       # Cancel the order entirely
-    ESCALATE    = "escalate"     # Escalate disruption to management
-    INVESTIGATE = "investigate"  # Gather more info about a disruption
+    REROUTE        = "reroute"         # Send order to different supplier
+    SUBSTITUTE     = "substitute"      # Replace product with alternative
+    DELAY          = "delay"           # Push deadline back
+    CANCEL         = "cancel"          # Cancel the order entirely
+    ESCALATE       = "escalate"        # Escalate disruption to management
+    INVESTIGATE    = "investigate"      # Gather more info about a disruption
+    # V2: Advanced logistics actions
+    HEDGE_FX       = "hedge_fx"         # Buy forward contract on a currency pair
+    SELECT_CARRIER = "select_carrier"   # Choose specific carrier for a lane
+    REBALANCE_DC   = "rebalance_dc"     # Transfer inventory between DCs
+    EXPEDITE       = "expedite"         # Pay premium for faster shipping
+    INSURE         = "insure"           # Buy additional cargo insurance
+    PRE_CLEAR      = "pre_clear"        # Pre-file customs documentation
 
 
 class EscalationPriority(str, Enum):
@@ -114,6 +121,66 @@ class Action(BaseModel):
     investigation_type: Optional[InvestigationType] = Field(
         default=None,
         description="What aspect to investigate"
+    )
+
+    # ═══════════════════════════════════════
+    # V2: Advanced logistics action fields
+    # ═══════════════════════════════════════
+
+    # FOR: hedge_fx
+    fx_pair: Optional[str] = Field(
+        default=None,
+        description="Currency pair to hedge, e.g. 'USD_CNY' (required for hedge_fx)"
+    )
+    hedge_coverage: Optional[float] = Field(
+        default=None,
+        description="Target hedge coverage 0.0-1.0 (required for hedge_fx)"
+    )
+
+    # FOR: select_carrier
+    lane_id: Optional[str] = Field(
+        default=None,
+        description="Shipping lane ID (required for select_carrier, expedite)"
+    )
+    carrier_id: Optional[str] = Field(
+        default=None,
+        description="Carrier ID to assign (required for select_carrier)"
+    )
+
+    # FOR: rebalance_dc
+    source_dc: Optional[str] = Field(
+        default=None,
+        description="Source DC ID for inventory transfer (required for rebalance_dc)"
+    )
+    destination_dc: Optional[str] = Field(
+        default=None,
+        description="Destination DC ID for inventory transfer (required for rebalance_dc)"
+    )
+    sku: Optional[str] = Field(
+        default=None,
+        description="SKU to transfer (required for rebalance_dc)"
+    )
+    transfer_units: Optional[int] = Field(
+        default=None,
+        description="Number of units to transfer (required for rebalance_dc)"
+    )
+
+    # FOR: expedite
+    premium_pct: Optional[float] = Field(
+        default=None,
+        description="Premium percentage willing to pay for faster shipping (for expedite)"
+    )
+
+    # FOR: insure
+    insure_shipment_id: Optional[str] = Field(
+        default=None,
+        description="Shipment ID to insure (required for insure)"
+    )
+
+    # FOR: pre_clear
+    destination_country: Optional[str] = Field(
+        default=None,
+        description="Destination country for pre-clearance (required for pre_clear)"
     )
 
     class Config:
