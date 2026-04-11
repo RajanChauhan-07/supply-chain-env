@@ -1,3 +1,12 @@
+---
+title: Supply Chain Env
+emoji: 📦
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # 🔥 God-Level Supply Chain Disruption Management Environment
 
 > A stochastic, multi-tier, multi-objective supply chain RL environment with Apple-scale logistics complexity.
