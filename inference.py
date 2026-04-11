@@ -1117,6 +1117,7 @@ def build_user_prompt(
     recent_events_text = ""
     if recent_events:
         recent_events_text = "\n\nRECENT EPISODE MEMORY:"
+        MAX_CONTEXT_EVENTS = 10
         for event in recent_events[-MAX_CONTEXT_EVENTS:]:
             recent_events_text += f"\n  - {event}"
 
@@ -1362,6 +1363,7 @@ def run_agent_on_task(
                         source=action_source,
                     )
                 )
+                MAX_CONTEXT_EVENTS = 10
                 recent_events = recent_events[-MAX_CONTEXT_EVENTS:]
 
                 log_step(
