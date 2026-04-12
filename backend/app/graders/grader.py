@@ -744,13 +744,31 @@ class MultiTierGrader(BaseGrader):
 
 
 class StochasticGrader(BaseGrader):
-    """Grader for Task Stochastic — multi-objective: cost, service, launch, ESG."""
+    """Grader for Task Stochastic — multi-objective: cost, service, launch, ESG.
+    Includes coordination penalty for incoherent cross-layer decisions."""
     task_id = "task_stochastic"
     PASS_THRESHOLD = 0.35
 
+    def _coordination_penalty(self, task) -> float:
+        """Lightweight coordination check for stochastic task."""
+        penalty = 0.0
+        history = task.action_history
+        for i, record in enumerate(history):
+            action_type = record.get("action_type", "")
+            if action_type == "reroute" and record.get("shipping_method") == "sea":
+                has_preclear = any(
+                    h.get("action_type") == "pre_clear"
+                    for h in history[max(0, i-2):i+3]
+                )
+                if not has_preclear:
+                    penalty += 0.02
+        return min(0.10, penalty)
+
     def grade(self) -> dict:
         task = self.task
-        score = self._clamp(task.get_final_score())
+        raw_score = task.get_final_score()
+        coord_penalty = self._coordination_penalty(task)
+        score = self._clamp(raw_score - coord_penalty)
         total_value = sum(o.value_usd for o in task.orders)
         saved = sum(o.value_usd for o in task.orders if o.status == OrderStatus.FULFILLED)
         return {
@@ -759,6 +777,7 @@ class StochasticGrader(BaseGrader):
             "breakdown": {
                 "revenue_pct": f"{saved/total_value*100:.1f}%" if total_value > 0 else "0%",
                 "budget_efficiency": f"${task.budget.remaining:,.0f} remaining",
+                "coordination_penalty": f"-{coord_penalty:.3f}",
                 "dynamic_disruptions_handled": len([d for d in task.disruptions if d.id.startswith("EVT")]),
                 "launch_countdown_final": getattr(task.world, 'launch_countdown', -1),
             },
@@ -767,7 +786,8 @@ class StochasticGrader(BaseGrader):
                 f"=== STOCHASTIC GRADER ===\n"
                 f"Score: {score:.3f} | Revenue: {saved/total_value*100:.1f}% | "
                 f"Dynamic events: {len([d for d in task.disruptions if d.id.startswith('EVT')])} | "
-                f"Budget: ${task.budget.remaining:,.0f} left"
+                f"Budget: ${task.budget.remaining:,.0f} left | "
+                f"Coord penalty: -{coord_penalty:.3f}"
             ),
         }
 
@@ -806,13 +826,61 @@ class FullSimGrader(BaseGrader):
     """
     Grader for Task Full Sim — Apple-Scale.
     Multi-objective: Cost (30%) + Service (30%) + Launch (25%) + ESG (15%)
+    Includes coordination penalty for incoherent cross-layer decisions.
     """
     task_id = "task_full_sim"
     PASS_THRESHOLD = 0.30
 
+    def _coordination_penalty(self, task) -> tuple[float, list[str]]:
+        """Penalize incoherent cross-layer decisions."""
+        penalty = 0.0
+        violations = []
+        history = task.action_history
+
+        for i, record in enumerate(history):
+            action_type = record.get("action_type", "")
+
+            # Sea route selected + no pre_clear within 2 steps
+            if action_type == "reroute" and record.get("shipping_method") == "sea":
+                has_preclear = any(
+                    h.get("action_type") == "pre_clear"
+                    for h in history[max(0, i-2):i+3]
+                )
+                if not has_preclear:
+                    penalty += 0.03
+                    violations.append(f"Step {record.get('step', '?')}: sea route without pre_clear")
+
+            # hedge_fx on a pair with zero active shipments in that currency
+            if action_type == "hedge_fx":
+                # Simplified: penalize if no reroute or shipment actions taken yet
+                has_exposure = any(
+                    h.get("action_type") in ("reroute", "select_carrier")
+                    for h in history[:i]
+                )
+                if not has_exposure:
+                    penalty += 0.02
+                    violations.append(f"Step {record.get('step', '?')}: hedge_fx with no FX exposure")
+
+            # insure on a lane with no active shipments
+            if action_type == "insure":
+                has_shipment = any(
+                    h.get("action_type") == "reroute"
+                    for h in history[:i]
+                )
+                if not has_shipment:
+                    penalty += 0.02
+                    violations.append(f"Step {record.get('step', '?')}: insure with no active shipments")
+
+        return min(0.15, penalty), violations
+
     def grade(self) -> dict:
         task = self.task
-        score = self._clamp(task.get_final_score())
+        raw_score = task.get_final_score()
+
+        # Apply coordination penalty
+        coord_penalty, coord_violations = self._coordination_penalty(task)
+        score = self._clamp(raw_score - coord_penalty)
+
         total_value = sum(o.value_usd for o in task.orders)
         saved = sum(o.value_usd for o in task.orders if o.status == OrderStatus.FULFILLED)
 
@@ -825,6 +893,13 @@ class FullSimGrader(BaseGrader):
         total_carbon = task.carbon_air + task.carbon_sea
         esg_pct = task.carbon_sea / total_carbon if total_carbon > 0 else 0.5
 
+        coord_summary = ""
+        if coord_violations:
+            coord_summary = (
+                f"\n\nCOORDINATION ANALYSIS (penalty: -{coord_penalty:.3f}):\n"
+                + "\n".join(f"  ⚠ {v}" for v in coord_violations)
+            )
+
         return {
             "task_id": self.task_id,
             "score": score,
@@ -833,11 +908,12 @@ class FullSimGrader(BaseGrader):
                 "service_score": f"{service_pct:.2f} (weight: 0.30)",
                 "launch_score": f"{launch_pct:.2f} (weight: 0.25)",
                 "esg_score": f"{esg_pct:.2f} (weight: 0.15)",
+                "coordination_penalty": f"-{coord_penalty:.3f}",
                 "trap_failures": len(task.trap_failures),
                 "cascade_regions": sum(1 for c in task.region_reroute_count.values() if c >= 4),
                 "investigations": len(task.investigated_ids),
                 "itar_blocks": task.itar_blocks,
-                "insurance_claims": task.insurance_claims,
+                "insurance_claims": int(task.insurance_claims),
                 "dynamic_events": len([d for d in task.disruptions if d.id.startswith("EVT")]),
             },
             "passed": score >= self.PASS_THRESHOLD,
@@ -857,6 +933,7 @@ class FullSimGrader(BaseGrader):
                 f"FINANCIALS:\n"
                 f"  Budget: ${task.budget.spent:,.0f} / ${task.budget.total:,.0f}\n"
                 f"  Revenue protected: ${saved:,.0f} / ${total_value:,.0f}"
+                f"{coord_summary}"
             ),
         }
 

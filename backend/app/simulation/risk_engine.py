@@ -145,6 +145,19 @@ DISRUPTION_CATALOG = {
 
 SEVERITY_MAP = {"low": 0.25, "medium": 0.50, "high": 0.75, "critical": 1.0}
 
+# Correlated disruption pairs: (trigger, follow-on) → conditional probability
+# When the trigger fires, the follow-on has this extra chance of also firing.
+CORRELATION_MATRIX = {
+    ("typhoon", "port_strike"): 0.60,       # Storm → port workers can't operate
+    ("typhoon", "labor_shortage"): 0.40,    # Storm → workers can't commute
+    ("earthquake", "chip_shortage"): 0.50,  # Quake → fab damaged
+    ("earthquake", "labor_shortage"): 0.35, # Quake → infrastructure damage
+    ("sanctions", "tariff_shock"): 0.40,    # Political escalation
+    ("cyber_attack", "pandemic_wave"): 0.0, # No correlation (control)
+    ("pandemic_wave", "labor_shortage"): 0.55, # Illness → staffing issues
+    ("suez_blockage", "tariff_shock"): 0.25,   # Supply shock → trade policy
+}
+
 
 class RiskEngine:
     """
@@ -162,6 +175,7 @@ class RiskEngine:
     def step(self, current_step: int, supply_network=None) -> list[DisruptionEvent]:
         """
         Roll for new disruptions this step. Returns newly created events.
+        Includes correlated follow-on events.
         """
         new_events = []
 
@@ -181,6 +195,26 @@ class RiskEngine:
                     new_events.append(event)
                     self.active_events.append(event)
                     self.event_log.append(event)
+
+        # Correlated follow-on events
+        triggered_types = [e.event_type for e in new_events]
+        correlated_events = []
+        for (trigger, followon), cond_prob in CORRELATION_MATRIX.items():
+            if trigger in triggered_types and followon not in triggered_types:
+                if self.rng.random() < cond_prob * self.difficulty:
+                    followon_config = DISRUPTION_CATALOG.get(followon)
+                    if followon_config:
+                        corr_event = self._create_event(
+                            followon, followon_config, current_step, supply_network)
+                        if corr_event:
+                            corr_event.description = (
+                                f"[CORRELATED with {trigger}] {corr_event.description}"
+                            )
+                            correlated_events.append(corr_event)
+                            self.active_events.append(corr_event)
+                            self.event_log.append(corr_event)
+
+        new_events.extend(correlated_events)
 
         # Resolve expired events
         self._resolve_expired(current_step)

@@ -133,6 +133,7 @@ class WorldState:
         self.carbon_units_air: float = 0.0
         self.launch_shipments_on_time: int = 0
         self.launch_shipments_late: int = 0
+        self.total_insurance_payouts: float = 0.0
 
     def advance_step(self) -> list[DisruptionEvent]:
         """
@@ -145,8 +146,14 @@ class WorldState:
         # Reset per-step counters
         self.constraints.reset_step_counters()
 
-        # Evolve market dynamics
+        # Evolve market dynamics (FX, freight, insurance, hedge P&L)
         self.market.step()
+
+        # Credit resolved insurance payouts back to budget
+        payouts = self.market.get_resolved_payouts()
+        if payouts > 0:
+            self.constraints.budget_spent = max(0, self.constraints.budget_spent - payouts)
+            self.total_insurance_payouts += payouts
 
         # Update lane congestion
         self.network.update_congestion(self.step_count)
@@ -310,6 +317,10 @@ class WorldState:
             if self.rng.random() > reliability:
                 eta += self.rng.randint(1, 3)  # Late
 
+        # Record carrier usage for reliability degradation
+        if carrier:
+            carrier.record_usage(lane_id)
+
         shipment = Shipment(
             id=f"SHIP_{self.shipment_counter:04d}",
             order_id=order_id,
@@ -395,4 +406,7 @@ class WorldState:
             "capacity_utilization": self.constraints.get_capacity_utilization(),
             "budget_remaining": round(
                 self.constraints.budget_envelope - self.constraints.budget_spent, 2),
+
+            # Insurance payouts credited
+            "insurance_payouts_credited": round(self.total_insurance_payouts, 2),
         }

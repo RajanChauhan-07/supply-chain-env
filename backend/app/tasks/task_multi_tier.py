@@ -25,9 +25,13 @@ class TaskMultiTier(BaseTask):
         "A Tier 3 rare earth supplier disruption cascades through Tier 2 "
         "components to Tier 1 assembly. The agent must investigate the "
         "root cause and reroute across tiers. Bullwhip effect amplifies "
-        "demand uncertainty at each level."
+        "demand uncertainty at each level. "
+        "PARTIAL OBSERVABILITY: Tier 3 supplier state is hidden until investigated."
     )
     max_steps = 20
+
+    # ── Partial observability: Tier 3 is opaque until investigated ──
+    partial_obs = True
 
     def reset(self, seed: Optional[int] = None) -> Observation:
         import random
@@ -42,6 +46,9 @@ class TaskMultiTier(BaseTask):
         self.investigated_ids = set()
         self.hidden_supplier_ids = {"S005", "S007"}
         self.metrics = Metrics()
+
+        # Track which tiers have been "revealed" via investigation
+        self.revealed_tier3_suppliers: set = set()
 
         # World state for rich observation
         self.world = WorldState(seed=seed or 42, difficulty=0.5)
@@ -138,13 +145,47 @@ class TaskMultiTier(BaseTask):
 
         return self._build_rich_observation()
 
+    def _mask_tier3(self, supply_tiers: dict) -> dict:
+        """Apply partial observability: mask Tier 3 supplier details."""
+        if not self.partial_obs or not supply_tiers:
+            return supply_tiers
+
+        masked = dict(supply_tiers)
+        if "tier3" in masked:
+            tier3 = dict(masked["tier3"])
+            masked_suppliers = []
+            for s in tier3.get("suppliers", []):
+                sid = s.get("id", "")
+                if sid in self.revealed_tier3_suppliers:
+                    masked_suppliers.append(s)  # Fully visible after investigation
+                else:
+                    masked_suppliers.append({
+                        "id": sid,
+                        "name": s.get("name", "Unknown"),
+                        "region": s.get("region", "unknown"),
+                        "location": "HIDDEN — investigate to reveal",
+                        "capacity_available": "unknown",
+                        "lead_time_days": "unknown",
+                        "cost_multiplier": "unknown",
+                        "reliability": None,
+                        "reliability_known": False,
+                        "is_disrupted": "unknown",
+                        "depends_on": s.get("depends_on", []),
+                    })
+            tier3["suppliers"] = masked_suppliers
+            masked["tier3"] = tier3
+        return masked
+
     def _build_rich_observation(self) -> Observation:
-        """Build observation with v2 fields."""
+        """Build observation with v2 fields and partial observability."""
         world_obs = self.world.to_full_observation()
         obs = self.get_observation()
 
+        # Apply partial observability mask to tier 3
+        supply_tiers = self._mask_tier3(world_obs.get("supply_tiers"))
+
         # Inject v2 fields
-        obs.supply_tiers = world_obs.get("supply_tiers")
+        obs.supply_tiers = supply_tiers
         obs.shipping_lanes = world_obs.get("shipping_lanes")
         obs.carrier_options = world_obs.get("carrier_options")
         obs.bullwhip_state = world_obs.get("bullwhip_state")
@@ -152,6 +193,21 @@ class TaskMultiTier(BaseTask):
         obs.dc_inventory = world_obs.get("dc_inventory")
 
         return obs
+
+    def _handle_investigate(self, action):
+        """Override investigate to reveal Tier 3 suppliers."""
+        result = super()._handle_investigate(action)
+        # If the investigated target is a T3 supplier in the world sim, reveal it
+        target_id = getattr(action, 'target_id', None)
+        if target_id:
+            for sup in self.world.network.get_all_suppliers_flat():
+                if sup.id == target_id and sup.tier == 3:
+                    self.revealed_tier3_suppliers.add(target_id)
+            # Also reveal T3 suppliers matching the task-level supplier IDs
+            t3_ids = {"S001", "S008"}  # Task-level Tier 3 supplier IDs
+            if target_id in t3_ids:
+                self.revealed_tier3_suppliers.add(target_id)
+        return result
 
     def step(self, action):
         """Override step to advance world state."""
@@ -162,7 +218,8 @@ class TaskMultiTier(BaseTask):
         # Enrich observation
         if not done:
             world_obs = self.world.to_full_observation()
-            obs.supply_tiers = world_obs.get("supply_tiers")
+            supply_tiers = self._mask_tier3(world_obs.get("supply_tiers"))
+            obs.supply_tiers = supply_tiers
             obs.bullwhip_state = world_obs.get("bullwhip_state")
             obs.demand_forecast = world_obs.get("demand_forecast")
         return obs, reward, done, info

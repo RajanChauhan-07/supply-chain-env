@@ -26,16 +26,25 @@ class Carrier:
     lane_reliability: dict = field(default_factory=dict)
     # lane_id → base cost multiplier
     lane_cost: dict = field(default_factory=dict)
+    # routing history: lane_id → usage count (drives reliability degradation)
+    routing_history: dict = field(default_factory=dict)
     # Global base reliability (fallback when no lane-specific data)
     base_reliability: float = 0.90
     base_cost: float = 1.0
 
+    def record_usage(self, lane_id: str):
+        """Record a shipment on this lane. Over-routing degrades reliability."""
+        self.routing_history[lane_id] = self.routing_history.get(lane_id, 0) + 1
+
     def get_reliability(self, lane_id: str, step: int = 0) -> float:
-        """Get time-variant, lane-specific reliability."""
+        """Get time-variant, lane-specific reliability with overuse degradation."""
         base = self.lane_reliability.get(lane_id, self.base_reliability)
-        # Add small time-variant noise (±5%)
+        # Time-variant noise (±5%)
         noise = 0.05 * math.sin(step * 0.3 + hash(lane_id) % 100)
-        return max(0.1, min(1.0, base + noise))
+        # Overuse degradation: -2% per use beyond 3 on the same lane
+        overuse_count = max(0, self.routing_history.get(lane_id, 0) - 3)
+        degradation = overuse_count * 0.02
+        return max(0.1, min(1.0, base + noise - degradation))
 
     def get_cost(self, lane_id: str) -> float:
         return self.lane_cost.get(lane_id, self.base_cost)
@@ -318,8 +327,9 @@ class SupplyNetwork:
                 "id": c.id, "name": c.name,
                 "lanes": {
                     lid: {"reliability": round(c.get_reliability(lid, step), 3),
-                          "cost": c.get_cost(lid)}
-                    for lid in c.lane_reliability
+                          "cost": c.get_cost(lid),
+                          "usage_count": c.routing_history.get(lid, 0)}
+                    for lid in set(list(c.lane_reliability.keys()) + [l.id for l in self.lanes])
                 },
             }
             for c in self.carriers

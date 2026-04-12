@@ -1,0 +1,171 @@
+[START] task=task_foundational env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+  LLM → {"action_type": "reroute", "order_id": "O001", "new_supplier_id": "S002"}
+[STEP] step=1 action={"action_type":"reroute","new_supplier_id":"S002","order_id":"O001"} reward=0.30 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O002", "new_supplier_id": "S002"}
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S002","order_id":"O002"} reward=0.30 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O003", "new_supplier_id": "S004"}
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O003"} reward=0.65 done=true error=null
+[END] success=true steps=3 score=0.735 rewards=0.30,0.30,0.65
+[START] task=task_multi_tier env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+  LLM → {"action_type": "reroute", "order_id": "O001", "new_supplier_id": "S004"}
+[STEP] step=1 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O001"} reward=0.30 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O002", "new_supplier_id": "S006"}
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S006","order_id":"O002"} reward=0.30 done=false error=null
+[STEP] step=3 action={"action_type":"escalate","disruption_id":"D001","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=4 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O003","shipping_method":"air"} reward=0.25 done=false error=null
+[STEP] step=5 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S007"} reward=0.00 done=false error=Client error '400 Bad Request' for url 'https://rajanchauhan-supply-chain-env.hf.space/step' For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+[END] success=false steps=5 score=0.000 rewards=0.30,0.30,0.08,0.25
+[START] task=task_stochastic env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D002","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S008"} reward=0.05 done=false error=null
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=4 action={"action_type":"reroute","new_supplier_id":"S010","order_id":"O002","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=5 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O003","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O005","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=7 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O004","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=8 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S005"} reward=0.05 done=false error=null
+[STEP] step=9 action={"action_type":"reroute","new_supplier_id":"S005","order_id":"O006","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=10 action={"action_type":"cancel","order_id":"O007","reason":"No feasible alternative within current constraints."} reward=-0.15 done=false error=null
+[STEP] step=11 action={"action_type":"escalate","disruption_id":"EVT_004","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=12 action={"action_type":"escalate","disruption_id":"EVT_006","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S006"}
+[STEP] step=13 action={"action_type":"investigate","target_id":"S006"} reward=0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S006", "investigation_type": "capacity"}
+[STEP] step=14 action={"action_type":"investigate","investigation_type":"capacity","target_id":"S006"} reward=-0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S009", "investigation_type": "reliability"}
+[STEP] step=15 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S009"} reward=0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S010", "investigation_type": "reliability"}
+[STEP] step=16 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S010"} reward=0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S004", "investigation_type": "capacity"}
+[STEP] step=17 action={"action_type":"investigate","investigation_type":"capacity","target_id":"S004"} reward=0.05 done=false error=null
+[STEP] step=18 action={"action_type":"escalate","disruption_id":"EVT_007","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=19 action={"action_type":"escalate","disruption_id":"EVT_008","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=20 action={"action_type":"cancel","order_id":"O008","reason":"No feasible alternative within current constraints."} reward=0.15 done=true error=null
+[END] success=true steps=20 score=0.690 rewards=0.08,0.05,0.20,0.30,0.30,0.30,0.20,0.05,0.20,-0.15,0.08,0.08,0.05,-0.05,0.05,0.05,0.05,0.08,0.08,0.15
+[START] task=task_adversarial_v2 env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D001","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O001","shipping_method":"air"} reward=0.25 done=false error=null
+[STEP] step=3 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S009"} reward=0.05 done=false error=null
+[STEP] step=4 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=5 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=7 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=8 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=9 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=10 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=11 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=12 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=13 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=14 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O002","shipping_method":"air"} reward=-0.15 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S005", "investigation_type": "reliability"}
+[STEP] step=15 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S005"} reward=0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S006", "investigation_type": "reliability"}
+[STEP] step=16 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S006"} reward=0.05 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O002", "new_supplier_id": "S006", "shipping_method": "air"}
+[STEP] step=17 action={"action_type":"reroute","new_supplier_id":"S006","order_id":"O002","shipping_method":"air"} reward=0.25 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S007", "investigation_type": "reliability"}
+[STEP] step=18 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S007"} reward=0.05 done=false error=null
+[STEP] step=19 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O003","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=20 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O003","shipping_method":"air"} reward=0.05 done=true error=null
+[END] success=true steps=20 score=0.765 rewards=0.08,0.25,0.05,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,0.05,0.05,0.25,0.05,-0.15,0.05
+[START] task=task_full_sim env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D001","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S008"} reward=0.05 done=false error=null
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=4 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=5 action={"action_type":"escalate","disruption_id":"EVT_003","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=7 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=8 action={"action_type":"escalate","disruption_id":"EVT_005","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=9 action={"action_type":"escalate","disruption_id":"EVT_006","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=10 action={"action_type":"escalate","disruption_id":"EVT_008","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=11 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=12 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=13 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=14 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=15 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S005", "investigation_type": "reliability"}
+[STEP] step=16 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S005"} reward=0.05 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O002", "new_supplier_id": "S005", "shipping_method": "sea"}
+[STEP] step=17 action={"action_type":"reroute","new_supplier_id":"S005","order_id":"O002","shipping_method":"sea"} reward=0.30 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S010"}
+[STEP] step=18 action={"action_type":"investigate","target_id":"S010"} reward=0.05 done=false error=null
+[STEP] step=19 action={"action_type":"escalate","disruption_id":"EVT_015","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=20 action={"action_type":"escalate","disruption_id":"EVT_020","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=21 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=22 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=23 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=24 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=25 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=26 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=27 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=28 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=29 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.15 done=false error=null
+[STEP] step=30 action={"action_type":"reroute","new_supplier_id":"S008","order_id":"O001","shipping_method":"air"} reward=-0.05 done=true error=null
+[END] success=true steps=30 score=0.531 rewards=0.08,0.05,-0.15,-0.15,0.08,-0.15,-0.15,0.08,0.08,0.08,-0.15,-0.15,-0.15,-0.15,-0.15,0.05,0.30,0.05,0.08,0.08,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.15,-0.05
+[START] task=task_easy env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O001","shipping_method":"air"} reward=0.65 done=true error=null
+[END] success=true steps=1 score=0.999 rewards=0.65
+[START] task=task_medium env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D002","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S004","order_id":"O003","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S007","order_id":"O001","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=4 action={"action_type":"delay","delay_days":7,"order_id":"O002","reason":"Temporary delay while preserving higher priority fulfillment."} reward=0.00 done=false error=null
+[STEP] step=5 action={"action_type":"delay","delay_days":7,"order_id":"O005","reason":"Temporary delay while preserving higher priority fulfillment."} reward=0.25 done=true error=null
+[END] success=true steps=5 score=0.830 rewards=0.08,0.30,0.30,0.00,0.25
+[START] task=task_hard env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+  LLM → {"action_type": "reroute", "order_id": "O012", "new_supplier_id": "S009"}
+[STEP] step=1 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O012"} reward=0.30 done=false error=null
+  LLM → {"action_type": "reroute", "order_id": "O009", "new_supplier_id": "S009"}
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S009","order_id":"O009"} reward=0.30 done=false error=null
+[STEP] step=3 action={"action_type":"escalate","disruption_id":"D002","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=4 action={"action_type":"escalate","disruption_id":"D005","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=5 action={"action_type":"escalate","disruption_id":"D006","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S007","order_id":"O003","shipping_method":"air"} reward=-0.05 done=false error=null
+[STEP] step=7 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S005_ALT"} reward=0.05 done=false error=null
+[STEP] step=8 action={"action_type":"reroute","new_supplier_id":"S005_ALT","order_id":"O001","shipping_method":"air"} reward=-0.10 done=false error=null
+[STEP] step=9 action={"action_type":"reroute","new_supplier_id":"S005_ALT","order_id":"O002","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=10 action={"action_type":"reroute","new_supplier_id":"S005_ALT","order_id":"O007","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=11 action={"action_type":"reroute","new_supplier_id":"S005_ALT","order_id":"O010","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=12 action={"action_type":"cancel","order_id":"O011","reason":"No feasible alternative within current constraints."} reward=0.10 done=true error=null
+[END] success=true steps=12 score=0.615 rewards=0.30,0.30,0.08,0.08,0.08,-0.05,0.05,-0.10,0.20,0.20,0.20,0.10
+[START] task=task_expert env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D_EX_01","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"escalate","disruption_id":"D_EX_04","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S_AS_04","order_id":"O_EX_01","shipping_method":"air"} reward=0.25 done=false error=null
+[STEP] step=4 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S_AM_03"} reward=0.05 done=false error=null
+[STEP] step=5 action={"action_type":"reroute","new_supplier_id":"S_AM_03","order_id":"O_EX_07","shipping_method":"air"} reward=-0.10 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S_AM_02","order_id":"O_EX_04","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=7 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S_EU_03"} reward=0.05 done=false error=null
+[STEP] step=8 action={"action_type":"reroute","new_supplier_id":"S_EU_03","order_id":"O_EX_05","shipping_method":"air"} reward=0.20 done=false error=null
+[STEP] step=9 action={"action_type":"delay","delay_days":7,"order_id":"O_EX_02","reason":"Temporary delay while preserving higher priority fulfillment."} reward=0.00 done=false error=null
+[STEP] step=10 action={"action_type":"reroute","new_supplier_id":"S_AM_02","order_id":"O_EX_03","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=11 action={"action_type":"delay","delay_days":7,"order_id":"O_EX_06","reason":"Temporary delay while preserving higher priority fulfillment."} reward=0.00 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S_AS_03", "investigation_type": "reliability"}
+[STEP] step=12 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S_AS_03"} reward=0.05 done=false error=null
+  LLM → {"action_type": "investigate", "target_id": "S_EU_02", "investigation_type": "reliability"}
+[STEP] step=13 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S_EU_02"} reward=0.05 done=false error=null
+[STEP] step=14 action={"action_type":"cancel","order_id":"O_EX_08","reason":"No feasible alternative within current constraints."} reward=-0.15 done=false error=null
+[STEP] step=15 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=0.05 done=false error=null
+[STEP] step=16 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=17 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=18 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=19 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=20 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=21 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=22 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=23 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=24 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=-0.05 done=false error=null
+[STEP] step=25 action={"action_type":"investigate","investigation_type":"reliability","target_id":"D_EX_01"} reward=0.05 done=true error=null
+[END] success=true steps=25 score=0.497 rewards=0.08,0.08,0.25,0.05,-0.10,0.30,0.05,0.20,0.00,0.30,0.00,0.05,0.05,-0.15,0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,-0.05,0.05
+[START] task=task_adversarial env=supply-chain-disruption-env model=Qwen/Qwen2.5-72B-Instruct
+[STEP] step=1 action={"action_type":"escalate","disruption_id":"D_ADV_01","escalation_message":"Escalating critical supply chain disruption.","escalation_priority":"critical"} reward=0.08 done=false error=null
+[STEP] step=2 action={"action_type":"reroute","new_supplier_id":"S_SAFE_01","order_id":"O_ADV_01","shipping_method":"air"} reward=0.25 done=false error=null
+[STEP] step=3 action={"action_type":"reroute","new_supplier_id":"S_SAFE_05","order_id":"O_ADV_02","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=4 action={"action_type":"reroute","new_supplier_id":"S_SAFE_03","order_id":"O_ADV_04","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=5 action={"action_type":"reroute","new_supplier_id":"S_SAFE_05","order_id":"O_ADV_03","shipping_method":"air"} reward=0.30 done=false error=null
+[STEP] step=6 action={"action_type":"reroute","new_supplier_id":"S_SAFE_02","order_id":"O_ADV_06","shipping_method":"air"} reward=0.25 done=false error=null
+[STEP] step=7 action={"action_type":"investigate","investigation_type":"reliability","target_id":"S_TRAP_03"} reward=0.05 done=false error=null
+[STEP] step=8 action={"action_type":"reroute","new_supplier_id":"S_TRAP_03","order_id":"O_ADV_05","shipping_method":"air"} reward=0.55 done=true error=null
+[END] success=true steps=8 score=0.637 rewards=0.08,0.25,0.30,0.30,0.30,0.25,0.05,0.55
+{"all_passed": false, "average_score": 0.6298, "baseline_results": [{"breakdown": {"budget_spent": "$55,000/$100,000", "orders_saved": "3/3", "revenue_protected": "$510,000"}, "execution_mode": "model_only", "fallback_actions_used": 0, "fallback_used": false, "model_action_rejections": 0, "model_actions_used": 3, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.735, "steps_taken": 3, "task_id": "task_foundational", "total_reward": 1.25}, {"breakdown": {}, "execution_mode": "hybrid", "fallback_actions_used": 3, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 2, "parse_failures": 0, "passed": false, "repair_attempts_used": 0, "score": 0.0, "steps_taken": 5, "task_id": "task_multi_tier", "total_reward": 0.93}, {"breakdown": {"budget_efficiency": "$285,000 remaining", "dynamic_disruptions_handled": 9, "launch_countdown_final": 0, "revenue_pct": "91.9%"}, "execution_mode": "hybrid", "fallback_actions_used": 15, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 5, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.6895, "steps_taken": 20, "task_id": "task_stochastic", "total_reward": 2.15}, {"breakdown": {"budget_spent": "$260,000", "insurance_claims": 0, "investigation_depth": 4, "orders_saved": 2, "trap_failures": 0, "traps_detected": "3/3"}, "execution_mode": "hybrid", "fallback_actions_used": 16, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 4, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.7648, "steps_taken": 20, "task_id": "task_adversarial_v2", "total_reward": -0.97}, {"breakdown": {"cascade_regions": 0, "cost_score": "0.75 (weight: 0.30)", "dynamic_events": 27, "esg_score": "1.00 (weight: 0.15)", "insurance_claims": 0, "investigations": 3, "itar_blocks": 0, "launch_score": "0.17 (weight: 0.25)", "service_score": "0.18 (weight: 0.30)", "trap_failures": 0}, "execution_mode": "hybrid", "fallback_actions_used": 27, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 3, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.5312, "steps_taken": 30, "task_id": "task_full_sim", "total_reward": -1.74}, {"breakdown": {"budget_respected": 0.2, "efficiency": 0.1, "order_fulfilled": 0.5, "supplier_choice": 0.2}, "execution_mode": "fallback_only", "fallback_actions_used": 1, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 0, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.999, "steps_taken": 1, "task_id": "task_easy", "total_reward": 0.65}, {"breakdown": {"budget_adherence": 0.2, "high_value_orders_saved": 0.2667, "prioritization_bonus": 0.1, "revenue_protected": 0.2629}, "execution_mode": "fallback_only", "fallback_actions_used": 5, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 0, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.8296, "steps_taken": 5, "task_id": "task_medium", "total_reward": 0.93}, {"breakdown": {"bad_supplier_penalty": -0.1, "budget_not_exceeded": 0.2, "escalation_decisions": 0.1, "high_value_orders_saved": 0.2333, "revenue_protected": 0.1812, "speed": 0.0}, "execution_mode": "hybrid", "fallback_actions_used": 10, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 2, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.6145, "steps_taken": 12, "task_id": "task_hard", "total_reward": 1.44}, {"breakdown": {"budget_adherence": 0.0008, "cascade_prevention": 0.1, "efficiency": 0.0, "escalation_quality": 0.0667, "regional_balance": 0.05, "revenue_protected": 0.1794, "strategic_investigation": 0.1}, "execution_mode": "hybrid", "fallback_actions_used": 23, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 2, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.4969, "steps_taken": 25, "task_id": "task_expert", "total_reward": 0.81}, {"breakdown": {"budget_efficiency": 0.0041, "efficiency": 0.05, "investigation_depth": 0.05, "revenue_protected": 0.25, "traps_detected": 0.0833, "zero_trap_failures": 0.2}, "execution_mode": "fallback_only", "fallback_actions_used": 8, "fallback_used": true, "model_action_rejections": 0, "model_actions_used": 0, "parse_failures": 0, "passed": true, "repair_attempts_used": 0, "score": 0.6374, "steps_taken": 8, "task_id": "task_adversarial", "total_reward": 2.08}], "execution_modes": {"task_adversarial": "fallback_only", "task_adversarial_v2": "hybrid", "task_easy": "fallback_only", "task_expert": "hybrid", "task_foundational": "model_only", "task_full_sim": "hybrid", "task_hard": "hybrid", "task_medium": "fallback_only", "task_multi_tier": "hybrid", "task_stochastic": "hybrid"}, "fallback_assisted_tasks": ["task_multi_tier", "task_stochastic", "task_adversarial_v2", "task_full_sim", "task_easy", "task_medium", "task_hard", "task_expert", "task_adversarial"], "fully_model_driven_tasks": ["task_foundational"], "model": "Qwen/Qwen2.5-72B-Instruct", "strict_baseline": false, "total_runtime_s": 363.18, "used_fallback": true}
